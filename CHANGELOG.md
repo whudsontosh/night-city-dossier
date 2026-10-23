@@ -2,6 +2,14 @@
 
 Add a section at the top for each new version before pushing the version bump. The text under the version heading becomes the GitHub release notes and is shown in the app's update window.
 
+## 1.4.0
+- Night City Dossier now runs on Mac as well as Windows. Each release has a Mac disk image (`Night-City-Dossier-1.4.0.dmg`) that works on Apple Silicon and Intel Macs with macOS 11 or later. See the README for the one-time "Open Anyway" step, since the app isn't notarised by Apple.
+- Windows and Mac players can share a game: a GM on either can host, and players on either can join with the same invite code. Character files, GM campaign files and backups move freely between the two.
+- The Mac app updates itself like the Windows one: on launch it downloads the new version, checks it and swaps itself in Applications, then reopens. If it isn't in Applications it offers to move itself there first.
+- Online hosting on a Mac uses Cloudflare's Mac connector (about 20 MB, downloaded once and checked against Cloudflare's published checksum).
+- Mac touches: the usual app menu (About, Check for Updates, Hide, Quit), Cmd shortcuts, Mac wording for folders, copy shortcuts and the firewall prompt, and faster trackpad pinch-zoom on the battle map.
+- Help menu: new "Download page" item.
+
 ## 1.3.3
 - Dice fixed: the dice tray opens in the bottom-right corner again. Since 1.2.0 it had been landing half off the screen, and on the battle map it squashed the map.
 - Skill check: a simple way to roll any check. Open it from **Skill check…** in the dice tray, on the Skills tab, or in your panel at the table. Pick a skill (search, or show all) or a plain stat, choose how hard it is (Easy 10 to Nearly impossible 30), add a modifier and any Luck you want to spend, and roll. It shows the total, success or failure and the margin. At the table, the roll and its difficulty go to the table log.

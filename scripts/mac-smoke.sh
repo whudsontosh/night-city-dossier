@@ -11,11 +11,15 @@ APPS="$WORK/Applications"; mkdir -p "$APPS"
 ditto -x -k "$ZIP" "$APPS"
 APP="$APPS/Night City Dossier.app"
 BIN="$APP/Contents/MacOS/Night City Dossier"
-fail() { echo "SMOKE FAIL: $*"; for f in "$WORK"/*.json "$WORK"/*.after; do [ -f "$f" ] && { echo "--- $f"; cat "$f"; }; done; cat "$TMPDIR"/NightCityDossier-update/mac-update.log 2>/dev/null || true; exit 1; }
+report() { # also surface details as a build annotation (readable without the full log)
+  local body; body="$( { echo "$1"; for f in "$WORK"/*.json "$WORK"/*.after "$WORK"/*.log; do [ -f "$f" ] && { echo "--- $(basename "$f")"; tail -c 1500 "$f"; }; done; cat "$TMPDIR"/NightCityDossier-update/mac-update.log 2>/dev/null | tail -c 800; } )"
+  body="${body//'%'/'%25'}"; body="${body//$'\r'/'%0D'}"; body="${body//$'\n'/'%0A'}"
+  echo "::$2 title=Mac check::${body:0:6000}"; }
+fail() { echo "SMOKE FAIL: $*"; report "FAIL: $*" error; exit 1; }
 wait_for() { for i in $(seq 1 "$2"); do [ -f "$1" ] && grep -q '"finished": true' "$1" && return 0; sleep 1; done; return 1; }
 
 echo "== 1. starts, serves the table, goes online"
-NCD_SMOKE_TUNNEL=1 "$BIN" --ncd-smoke-out="$WORK/run1.json" &
+NCD_SMOKE_TUNNEL=1 "$BIN" --ncd-smoke-out="$WORK/run1.json" > "$WORK/run1.log" 2>&1 &
 wait_for "$WORK/run1.json" 150 || fail "first launch didn't finish"
 cat "$WORK/run1.json"
 grep -q '"ok": true' "$WORK/run1.json" || fail "first launch reported a problem"
@@ -36,7 +40,7 @@ HTTP=$!
 sleep 1
 BEFORE=$(stat -f%i "$APP")
 NCD_UPDATE_URL="http://127.0.0.1:8765/latest.json" NCD_UPDATE_ASSET_PREFIX="http://127.0.0.1:8765/" NCD_UPDATE_PRETEND_VERSION="0.0.1" \
-  "$BIN" --ncd-smoke-out="$WORK/run2.json" &
+  "$BIN" --ncd-smoke-out="$WORK/run2.json" > "$WORK/run2.log" 2>&1 &
 for i in $(seq 1 120); do grep -q '"update": "handed-off"' "$WORK/run2.json" 2>/dev/null && break; grep -q '"finished": true' "$WORK/run2.json" 2>/dev/null && break; sleep 1; done
 cat "$WORK/run2.json" || true
 grep -q '"update": "handed-off"' "$WORK/run2.json" || fail "the updater didn't hand off to the installer helper"
@@ -49,4 +53,5 @@ ls -a "$APPS" | grep -q '^\.ncd-' && fail "leftover update folders"
 codesign --verify --deep --strict "$APP" || fail "updated app isn't validly signed"
 kill $HTTP 2>/dev/null || true
 cat "$TMPDIR"/NightCityDossier-update/mac-update.log 2>/dev/null || true
+report "OK" notice
 echo "SMOKE OK"

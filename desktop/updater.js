@@ -189,6 +189,7 @@ else
   echo "could not move the old app aside"
 fi
 rm -rf "$STAGE"
+unset NCD_UPDATE_URL NCD_UPDATE_ASSET_PREFIX NCD_UPDATE_PRETEND_VERSION NCD_UPDATE_DRYRUN NCD_SMOKE_TUNNEL
 /usr/bin/open -n "$APP"${relaunchArgs.length ? ' --args ' + relaunchArgs.map(shq).join(' ') : ''}
 rm -f "$0"
 `, { mode: 0o755 });

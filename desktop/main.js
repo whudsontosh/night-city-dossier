@@ -302,7 +302,7 @@ async function runSmoke() {
       } catch (e) { smokeNote({ tunnelError: String(e.message || e) }); }
       tunnel.stop();
     }
-    if (process.env.NCD_UPDATE_URL) { await runUpdate(false); if (smoke.update === 'handed-off') return; }
+    if (process.env.NCD_UPDATE_URL && !SMOKE_OUT.endsWith('.after')) { await runUpdate(false); if (smoke.update === 'handed-off') return; }
     done({ ok: true });
   } catch (e) { done({ ok: false, error: String(e && e.stack || e) }); }
 }

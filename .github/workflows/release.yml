@@ -2,7 +2,8 @@ name: Build and release
 
 # Publishes a release whenever desktop/package.json has a version that isn't released yet:
 # bump "version", add a CHANGELOG.md section, push to main. Installed apps update on their next launch.
-# Pushing a matching v* tag works too, and "Run workflow" on the Actions tab makes a test build.
+# Each release has the Windows installer and the Mac app (one universal build for Apple Silicon and Intel).
+# "Run workflow" on the Actions tab makes a test build of any branch without publishing anything.
 on:
   push:
     branches: [main]
@@ -13,15 +14,18 @@ permissions:
   contents: write
 
 concurrency:
-  group: release
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  windows-installer:
+  plan:
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      build: ${{ steps.plan.outputs.build }}
+      publish: ${{ steps.plan.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Is this version already released?
         id: plan
         env:
@@ -33,44 +37,88 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME doesn't match desktop/package.json version ($V)."
             exit 1
           fi
-          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "Manual run: test build only."
+            echo "build=true" >> "$GITHUB_OUTPUT"; echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Version $V is already released."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then echo "build=false" >> "$GITHUB_OUTPUT"; else echo "build=true" >> "$GITHUB_OUTPUT"; fi
+            echo "build=false" >> "$GITHUB_OUTPUT"; echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "Version $V is new: building and publishing."
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"; echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
+  windows:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        if: steps.plan.outputs.build == 'true'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: desktop/package-lock.json
-
       - name: Install NSIS
-        if: steps.plan.outputs.build == 'true'
         run: sudo apt-get update && sudo apt-get install -y nsis
-
-      - name: Build
-        if: steps.plan.outputs.build == 'true'
+      - name: Build the Windows installer
         run: bash scripts/build-windows.sh
-
-      - name: Keep the build as a workflow artifact
-        if: steps.plan.outputs.build == 'true'
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: night-city-dossier-${{ steps.plan.outputs.version }}
+          name: windows-${{ needs.plan.outputs.version }}
           path: release/
           retention-days: 14
 
+  mac:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Build the Mac app
+        run: bash scripts/build-mac.sh
+      - name: Check the app on a real Mac (start, table server, online link, self-update)
+        run: bash scripts/mac-smoke.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ needs.plan.outputs.version }}
+          path: release-mac/
+          retention-days: 14
+
+  publish:
+    needs: [plan, windows, mac]
+    if: needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-${{ needs.plan.outputs.version }}
+          path: release/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-${{ needs.plan.outputs.version }}
+          path: release/
+      - name: Combine latest.json for both platforms
+        env:
+          V: ${{ needs.plan.outputs.version }}
+        run: |
+          python3 scripts/make-latest.py "$V" "$GITHUB_REPOSITORY" \
+            --win "release/Night-City-Dossier-Setup-$V.exe" \
+            --mac "release/Night-City-Dossier-$V-mac.zip" > release/latest.json
+          python3 scripts/release-notes.py "$V" > release/notes.md
+          cat release/latest.json
+          ls -la release
       - name: Publish the release
-        if: steps.plan.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          V: ${{ steps.plan.outputs.version }}
+          V: ${{ needs.plan.outputs.version }}
         run: |
           gh release create "v$V" release/* \
             --repo "$GITHUB_REPOSITORY" \

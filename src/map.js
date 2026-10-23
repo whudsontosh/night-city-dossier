@@ -134,7 +134,7 @@ class MapView{
     if(this.tool!=="select")return;const tok=this.hitToken(w);
     if(tok){this.emit("token-dbl",tok.id);return}
     this.addPing(w.x,w.y,this.cfg.me().color);this.emit("ping",{x:w.x,y:w.y})}
-  wheel(e){e.preventDefault();const p=this.pt(e);const f=Math.exp(-(e.deltaMode===1?e.deltaY*16:e.deltaY)*0.0015);this.zoomBy(f,p.x,p.y)}
+  wheel(e){e.preventDefault();const p=this.pt(e);const dy=e.deltaMode===1?e.deltaY*16:e.deltaY;const f=Math.exp(-Math.max(-300,Math.min(300,dy))*(e.ctrlKey?0.01:0.0015));this.zoomBy(f,p.x,p.y)}
   key(e,isDown){
     if(e.code==="Space"){this.space=isDown;if(isDown&&!this.drag)this.canvas.style.cursor="grab";e.preventDefault();return}
     if(!isDown)return;

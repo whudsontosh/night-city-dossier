@@ -8,7 +8,11 @@ const { createServer } = require('./server');
 const tunnel = require('./tunnel');
 const updater = require('./updater');
 
-app.setAppUserModelId('com.nightcity.dossier');
+const IS_MAC = process.platform === 'darwin';
+if (process.platform === 'win32') app.setAppUserModelId('com.nightcity.dossier');
+// Smoke test (used by the release build to check the packaged app really starts): --ncd-smoke-out=<file>
+const SMOKE_OUT = (process.argv.find((a) => a.startsWith('--ncd-smoke-out=')) || '').slice(16) || process.env.NCD_SMOKE_OUT || '';
+const RELEASES_PAGE = `https://github.com/${updater.REPO}/releases/latest`;
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 
@@ -91,7 +95,15 @@ function setMode(mode) {
 }
 
 function buildMenu() {
+  const about = () => dialog.showMessageBox(mainWin, { type: 'info', title: 'Night City Dossier', message: `Night City Dossier ${app.getVersion()}`, detail: `Cyberpunk 2020 characters, GM console and online map table.\n\nYour data: ${DATA_DIR}\nOnline links by Cloudflare quick tunnels (cloudflared ${tunnel.CF_VERSION}).` });
   const tpl = [
+    ...(IS_MAC ? [{ label: app.name, submenu: [
+      { label: 'About Night City Dossier', click: about },
+      { label: 'Check for Updates…', click: () => runUpdate(true) },
+      { type: 'separator' }, { role: 'services' }, { type: 'separator' },
+      { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' },
+      { role: 'quit' },
+    ] }] : []),
     { label: 'File', submenu: [
       { label: 'GM mode', type: 'radio', checked: cfg.mode === 'gm', click: () => setMode('gm') },
       { label: 'Player mode', type: 'radio', checked: cfg.mode === 'player', click: () => setMode('player') },
@@ -100,15 +112,16 @@ function buildMenu() {
       { type: 'separator' },
       { label: 'Open data folder', click: () => shell.openPath(DATA_DIR) },
       { label: 'Open backups folder', click: () => shell.openPath(BACKUP_DIR) },
-      { type: 'separator' },
-      { role: 'quit', label: 'Exit' },
+      ...(IS_MAC ? [{ type: 'separator' }, { role: 'close' }] : [{ type: 'separator' }, { role: 'quit', label: 'Exit' }]),
     ] },
     { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
     { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools', label: 'Developer tools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
-    { label: 'Help', submenu: [
+    ...(IS_MAC ? [{ role: 'windowMenu' }] : []),
+    { role: 'help', label: 'Help', submenu: [
       { label: 'Check for updates…', click: () => runUpdate(true) },
+      { label: 'Download page', click: () => shell.openExternal(RELEASES_PAGE) },
       { type: 'separator' },
-      { label: 'About Night City Dossier', click: () => dialog.showMessageBox(mainWin, { type: 'info', title: 'Night City Dossier', message: `Night City Dossier ${app.getVersion()}`, detail: `Cyberpunk 2020 characters, GM console and online map table.\n\nYour data: ${DATA_DIR}\nOnline links by Cloudflare quick tunnels (cloudflared ${tunnel.CF_VERSION}).` }) },
+      { label: 'About Night City Dossier', click: about },
     ] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(tpl));
@@ -185,15 +198,29 @@ function openUpdateWindow(info) {
 }
 async function runUpdate(manual) {
   if (updating) return;
-  const allowed = (app.isPackaged && process.platform === 'win32') || process.env.NCD_UPDATE_URL;
-  if (!allowed) { if (manual) dialog.showMessageBox(mainWin, { type: 'info', message: 'Updates only run in the installed Windows app.' }); return; }
+  const allowed = (app.isPackaged && (process.platform === 'win32' || IS_MAC)) || process.env.NCD_UPDATE_URL;
+  if (!allowed) { if (manual) dialog.showMessageBox(mainWin, { type: 'info', message: 'Updates only run in the installed app.' }); return; }
   updating = true;
   let info = null;
   try {
-    info = await updater.check((u, o) => net.fetch(u, o), app.getVersion());
+    // NCD_UPDATE_PRETEND_VERSION lets the release smoke test update a build onto itself
+    const current = (process.env.NCD_UPDATE_URL && process.env.NCD_UPDATE_PRETEND_VERSION) || app.getVersion();
+    info = await updater.check((u, o) => net.fetch(u, o), current);
     if (!info) {
       if (manual) dialog.showMessageBox(mainWin, { type: 'info', title: 'Night City Dossier', message: `You have the latest version (${app.getVersion()}).` });
       return;
+    }
+    if (IS_MAC) {
+      // a copy running from the disk image, Downloads quarantine or a read-only folder can't replace itself
+      const can = updater.macCanSelfUpdate(updater.macBundle(app.getPath('exe')));
+      if (!can.ok) {
+        if (SMOKE_OUT) { smokeNote({ update: 'blocked', why: can.why }); return; }
+        const r = await dialog.showMessageBox(mainWin, { type: 'info', title: 'Night City Dossier', buttons: ['Open download page', 'Not now'], defaultId: 0, cancelId: 1,
+          message: `Version ${info.version} is available.`,
+          detail: 'To update by itself, Night City Dossier needs to be in your Applications folder. Drag it there from the disk image, then open it from Applications.\n\nOr download the new version now.' });
+        if (r.response === 0) shell.openExternal(RELEASES_PAGE);
+        return;
+      }
     }
     await openUpdateWindow(info);
     const base = { version: info.version, current: app.getVersion(), notes: info.notes };
@@ -205,7 +232,11 @@ async function runUpdate(manual) {
     if (!updWin) return; // skipped while downloading
     updSend({ ...base, state: 'installing' });
     await new Promise((r) => setTimeout(r, 1200));
-    updater.runInstaller(file);
+    if (IS_MAC) {
+      await updater.prepareMacInstall(file, { bundle: updater.macBundle(app.getPath('exe')), pid: process.pid, version: info.version,
+        tmpDir: path.join(app.getPath('temp'), 'NightCityDossier-update'), relaunchArgs: SMOKE_OUT ? [`--ncd-smoke-out=${SMOKE_OUT}.after`] : [] });
+      if (SMOKE_OUT) smokeNote({ update: 'handed-off' });
+    } else updater.runInstaller(file);
     if (!process.env.NCD_UPDATE_DRYRUN) setTimeout(() => app.quit(), 300);
   } catch (e) {
     updAbort = null;
@@ -214,6 +245,7 @@ async function runUpdate(manual) {
     console.error('[updater]', e);
     if (updWin) updSend({ version: info && info.version, current: app.getVersion(), state: 'error', msg: String(e.message || e) });
     else if (manual) dialog.showMessageBox(mainWin, { type: 'warning', title: 'Night City Dossier', message: 'Couldn\u2019t check for updates.', detail: String(e.message || e) });
+    if (SMOKE_OUT) smokeNote({ update: 'error', updateError: String(e.message || e) });
   } finally { updating = false; }
 }
 ipcMain.handle('pdf:save', async (e, name) => {
@@ -234,9 +266,44 @@ app.whenReady().then(async () => {
   session.defaultSession.on('will-download', (e, item) => {
     item.setSaveDialogOptions({ title: 'Save file', defaultPath: path.join(app.getPath('documents'), item.getFilename()) });
   });
+  if (IS_MAC && app.isPackaged && !SMOKE_OUT && !cfg.askedMoveToApps && !app.isInApplicationsFolder()) {
+    // updates can only replace the app when it lives in Applications
+    cfg.askedMoveToApps = true; saveCfg();
+    const r = await dialog.showMessageBox({ type: 'question', buttons: ['Move to Applications', 'Not now'], defaultId: 0, cancelId: 1,
+      message: 'Move Night City Dossier to your Applications folder?',
+      detail: 'It needs to be in Applications to update itself. Your characters and campaigns aren\u2019t affected.' });
+    if (r.response === 0) { try { if (app.moveToApplicationsFolder()) return; } catch (e) { dialog.showErrorBox('Couldn\u2019t move the app', String(e.message || e)); } }
+  }
   if (cfg.mode === 'gm') ensureServer().catch(() => {});
   createMainWindow();
-  if (cfg.autoUpdate !== false) setTimeout(() => runUpdate(false), 2500);
+  if (SMOKE_OUT) runSmoke();
+  else if (cfg.autoUpdate !== false) setTimeout(() => runUpdate(false), 2500);
 });
 app.on('window-all-closed', () => { app.quit(); });
+
+/* ---------------- smoke test (release build only) ---------------- */
+let smoke = {};
+function smokeNote(o) { smoke = { ...smoke, ...o }; try { fs.writeFileSync(SMOKE_OUT, JSON.stringify(smoke, null, 1)); } catch (e) {} }
+async function runSmoke() {
+  smokeNote({ started: true, version: app.getVersion(), platform: process.platform, arch: process.arch, exe: app.getPath('exe'), packaged: app.isPackaged, inApplications: IS_MAC ? app.isInApplicationsFolder() : null });
+  const done = (o) => { smokeNote({ ...o, finished: true }); setTimeout(() => app.quit(), 300); };
+  try {
+    await new Promise((r) => { if (mainWin.webContents.isLoading()) mainWin.webContents.once('did-finish-load', r); else r(); });
+    smokeNote({ page: mainWin.webContents.getURL().split('/').pop(), desk: await mainWin.webContents.executeJavaScript('!!(window.desk&&window.desk.platform)') });
+    const port = await ensureServer();
+    const res = await net.fetch(`http://127.0.0.1:${port}/`);
+    smokeNote({ serverPort: port, serverStatus: res.status });
+    if (process.env.NCD_SMOKE_TUNNEL) {
+      try {
+        const url = await tunnel.start({ binDir: BIN_DIR, port, fetchImpl: (u) => net.fetch(u), onStatus: (s) => { tunnelState = s; } });
+        let st = 0;
+        for (let i = 0; i < 8 && st !== 200; i++) { try { st = (await net.fetch(url + '/')).status; } catch (e) {} if (st !== 200) await new Promise((r) => setTimeout(r, 2500)); }
+        smokeNote({ tunnelUrl: url, tunnelStatus: st });
+      } catch (e) { smokeNote({ tunnelError: String(e.message || e) }); }
+      tunnel.stop();
+    }
+    if (process.env.NCD_UPDATE_URL) { await runUpdate(false); if (smoke.update === 'handed-off') return; }
+    done({ ok: true });
+  } catch (e) { done({ ok: false, error: String(e && e.stack || e) }); }
+}
 app.on('before-quit', () => { try { tunnel.stop(); } catch (e) {} try { if (srv) srv.close(); } catch (e) {} });

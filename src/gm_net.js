@@ -180,7 +180,7 @@ function hostNavBtn(){const n=Host.conns.size;
 function viewMap(){
   if(!window.desk)return `<div class="wrap" style="padding-block:40px"><div class="empty"><h3>Maps run in the desktop app</h3><p class="muted" style="margin:0">Open Night City Dossier from the desktop app to use the battle map and online play.</p></div></div>`;
   const m=curMap();const tool=ui.mapTool||"select";const view=MapV;
-  const tools=[toolBtn("select",tool,"select","Select & move (V)"),toolBtn("pan",tool,"pan","Pan (H, or hold Space)"),toolBtn("ruler",tool,"ruler","Measure (R)"),toolBtn("draw",tool,"draw","Draw (D)"),toolBtn("ping",tool,"ping","Ping (P, or Alt+click)"),
+  const tools=[toolBtn("select",tool,"select","Select & move (V)"),toolBtn("pan",tool,"pan","Pan (H, or hold Space)"),toolBtn("ruler",tool,"ruler","Measure (R)"),toolBtn("draw",tool,"draw","Draw (D)"),toolBtn("ping",tool,"ping",`Ping (P, or ${IS_MAC?"Option":"Alt"}+click)`),
     `<div class="mtool-sep"></div>`,toolBtn("fog-rect",tool,"fogadd","Hide area with fog (F)"),toolBtn("fog-cut",tool,"fogcut","Reveal area"),toolBtn("fog-poly",tool,"fogpoly","Hide a shape (click points, double-click to finish)"),toolBtn("fog-cutpoly",tool,"fogcutpoly","Reveal a shape"),
     `<div class="mtool-sep"></div>`,`<button class="mtool" data-act="map-zoom" data-v="in" title="Zoom in (+)">${icon("zin")}</button>`,`<button class="mtool" data-act="map-zoom" data-v="out" title="Zoom out (−)">${icon("zout")}</button>`,`<button class="mtool" data-act="map-zoom" data-v="fit" title="Fit map (0)">${icon("fit")}</button>`,
     `<button class="mtool ${view&&view.preview?"on":""}" data-act="map-preview" title="Preview what players see">${icon("eye")}</button>`].join("");
@@ -281,8 +281,8 @@ function hostModalBody(){
     </div>`}
   return `<div style="display:grid;gap:14px">${err}${hostCampLine()}
     <div class="hostopt rec"><div><h3>Online <span class="chip green">Recommended</span></h3><p>Creates a private link through Cloudflare, so players anywhere can join with no router setup. The first time, the app downloads Cloudflare's free connector (about 55 MB).</p></div><button class="btn primary" data-act="host-online">Go online</button></div>
-    <div class="hostopt"><div><h3>Direct connection</h3><p>For when the online link won't work. Players connect straight to your PC, so your router must forward this TCP port to this computer, and Windows will ask you to allow the app through the firewall.</p><div class="row"><label class="row" style="gap:6px"><span class="label">Port</span><input id="host-port" type="number" min="1024" max="65535" value="${Host.directPort}" style="width:100px"></label></div></div><button class="btn" data-act="host-direct">Host directly</button></div>
-    <div class="hostopt"><div><h3>This computer only</h3><p>Open the table to a player window on this PC. Good for setting up maps and trying things out.</p></div><button class="btn" data-act="host-local">Host locally</button></div>
+    <div class="hostopt"><div><h3>Direct connection</h3><p>For when the online link won't work. Players connect straight to your computer, so your router must forward this TCP port to it${IS_MAC?", and macOS may ask whether to allow incoming connections (choose Allow)":", and Windows will ask you to allow the app through the firewall"}.</p><div class="row"><label class="row" style="gap:6px"><span class="label">Port</span><input id="host-port" type="number" min="1024" max="65535" value="${Host.directPort}" style="width:100px"></label></div></div><button class="btn" data-act="host-direct">Host directly</button></div>
+    <div class="hostopt"><div><h3>This computer only</h3><p>Open the table to a player window on this computer. Good for setting up maps and trying things out.</p></div><button class="btn" data-act="host-local">Host locally</button></div>
     ${pw}
   </div>`}
 

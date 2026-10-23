@@ -1,8 +1,12 @@
 'use strict';
 /*
  * Self-updater. Each launch the app reads latest.json from the newest GitHub release,
- * and if that version is newer it downloads the installer, checks its SHA-256,
- * runs it silently and quits. The installer reopens the app when it finishes.
+ * and if that version is newer it downloads this platform's build and checks its SHA-256.
+ *  - Windows: runs the installer silently and quits; the installer reopens the app.
+ *  - macOS (1.4.0+): unpacks the new .app next to the current one, then a small helper
+ *    script waits for the app to quit, swaps the bundles and reopens it.
+ * latest.json keeps the Windows installer in its top-level fields (what 1.1–1.3 read) and
+ * lists every platform under "platforms".
  */
 const fs = require('fs');
 const path = require('path');
@@ -30,7 +34,13 @@ function withTimeout(ms) {
   return { signal: c.signal, done: () => clearTimeout(t) };
 }
 
-async function check(fetchImpl, current) {
+function pickAsset(info, platform) {
+  const p = info && info.platforms && typeof info.platforms === 'object' ? info.platforms[platform] : null;
+  if (p && typeof p === 'object') return p;
+  return platform === 'win32' ? info : null; // older latest.json files only had the Windows installer
+}
+
+async function check(fetchImpl, current, platform = process.platform) {
   const to = withTimeout(10000);
   let res;
   try { res = await fetchImpl(LATEST_URL + (LATEST_URL.includes('?') ? '&' : '?') + 't=' + Date.now(), { signal: to.signal, cache: 'no-store' }); }
@@ -40,14 +50,18 @@ async function check(fetchImpl, current) {
   const info = await res.json();
   if (!info || !parseVer(info.version)) throw new Error('The update information was incomplete.');
   if (!newer(info.version, current)) return null;
-  if (typeof info.url !== 'string' || !info.url.startsWith(ASSET_PREFIX)) throw new Error('The update points somewhere unexpected, so it was ignored.');
-  if (!/^[a-f0-9]{64}$/.test(info.sha256 || '')) throw new Error('The update has no checksum, so it was ignored.');
+  const a = pickAsset(info, platform);
+  if (!a) return null; // this release has nothing for this platform
+  if (typeof a.url !== 'string' || !a.url.startsWith(ASSET_PREFIX)) throw new Error('The update points somewhere unexpected, so it was ignored.');
+  if (!/^[a-f0-9]{64}$/.test(a.sha256 || '')) throw new Error('The update has no checksum, so it was ignored.');
+  const file = String(a.file || (platform === 'darwin' ? 'Night-City-Dossier-mac.zip' : 'Night-City-Dossier-Setup.exe')).replace(/[^\w.-]/g, '');
+  if (platform === 'darwin' && !/\.zip$/i.test(file)) throw new Error('The Mac update isn\u2019t a .zip, so it was ignored.');
   return {
     version: String(info.version).replace(/^v/i, ''),
-    url: info.url,
-    sha256: info.sha256,
-    size: Number(info.size) || 0,
-    file: String(info.file || 'Night-City-Dossier-Setup.exe').replace(/[^\w.-]/g, ''),
+    url: a.url,
+    sha256: a.sha256,
+    size: Number(a.size) || 0,
+    file,
     notes: String(info.notes || '').slice(0, 2000),
   };
 }
@@ -100,4 +114,92 @@ function runInstaller(file) {
   child.unref();
 }
 
-module.exports = { check, download, runInstaller, newer, LATEST_URL, REPO };
+/* ---------------- macOS ---------------- */
+// The .app bundle this process runs from (…/Night City Dossier.app/Contents/MacOS/Night City Dossier)
+function macBundle(exePath) {
+  const b = path.resolve(exePath, '..', '..', '..');
+  return /\.app$/i.test(b) ? b : null;
+}
+// Can this copy update itself? Not from a disk image, a read-only folder, or macOS's quarantine copy ("App Translocation").
+function macCanSelfUpdate(bundle) {
+  if (!bundle) return { ok: false, why: 'not-bundle' };
+  if (/\/AppTranslocation\//.test(bundle)) return { ok: false, why: 'translocated' };
+  if (bundle.startsWith('/Volumes/')) return { ok: false, why: 'disk-image' };
+  try { fs.accessSync(path.dirname(bundle), fs.constants.W_OK); fs.accessSync(bundle, fs.constants.W_OK); } catch (e) { return { ok: false, why: 'read-only' }; }
+  return { ok: true };
+}
+function plistVersion(appDir) {
+  try {
+    const x = fs.readFileSync(path.join(appDir, 'Contents', 'Info.plist'), 'utf8');
+    const m = x.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/);
+    return m ? m[1].trim() : '';
+  } catch (e) { return ''; }
+}
+function run(cmd, args) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(cmd, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('error', reject);
+    p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${path.basename(cmd)} failed (${code}): ${err.slice(0, 300)}`))));
+  });
+}
+const shq = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'";
+/*
+ * Unpacks the downloaded zip beside the running app and starts a detached helper that waits for
+ * this process to exit, swaps in the new bundle (restoring the old one if anything fails),
+ * and reopens the app. Returns the helper's log path. The caller quits the app afterwards.
+ */
+async function prepareMacInstall(zipFile, { bundle, pid, version, tmpDir, relaunchArgs = [] }) {
+  const can = macCanSelfUpdate(bundle);
+  if (!can.ok) { const e = new Error('This copy of the app can’t update itself.'); e.code = 'MAC_NOT_WRITABLE'; e.why = can.why; throw e; }
+  const parent = path.dirname(bundle);
+  const tag = Date.now().toString(36);
+  const stage = path.join(parent, `.ncd-update-${tag}`);
+  fs.rmSync(stage, { recursive: true, force: true });
+  fs.mkdirSync(stage, { recursive: true });
+  try {
+    await run('/usr/bin/ditto', ['-x', '-k', zipFile, stage]);
+    const found = fs.readdirSync(stage).find((n) => /\.app$/i.test(n));
+    if (!found) throw new Error('The update didn’t contain the app.');
+    const fresh = path.join(stage, found);
+    const v = plistVersion(fresh);
+    if (version && v && v !== version) throw new Error(`The update contained version ${v}, not ${version}.`);
+    if (!fs.existsSync(path.join(fresh, 'Contents', 'MacOS'))) throw new Error('The update looked incomplete.');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const log = path.join(tmpDir, 'mac-update.log');
+    const script = path.join(tmpDir, `mac-update-${tag}.sh`);
+    const old = path.join(parent, `.ncd-old-${tag}.app`);
+    fs.writeFileSync(script, `#!/bin/bash
+# Night City Dossier updater helper (written by the app; safe to delete)
+exec >>${shq(log)} 2>&1
+echo "[$(date)] updating ${version}"
+for i in $(seq 1 300); do kill -0 ${Number(pid)} 2>/dev/null || break; sleep 0.2; done
+APP=${shq(bundle)}; NEW=${shq(fresh)}; OLD=${shq(old)}; STAGE=${shq(stage)}
+if mv "$APP" "$OLD"; then
+  if mv "$NEW" "$APP"; then
+    rm -rf "$OLD"
+    /usr/bin/xattr -dr com.apple.quarantine "$APP" 2>/dev/null
+    echo "swapped"
+  else
+    echo "could not move the new app into place; restoring"
+    mv "$OLD" "$APP"
+  fi
+else
+  echo "could not move the old app aside"
+fi
+rm -rf "$STAGE"
+/usr/bin/open -n "$APP"${relaunchArgs.length ? ' --args ' + relaunchArgs.map(shq).join(' ') : ''}
+rm -f "$0"
+`, { mode: 0o755 });
+    if (process.env.NCD_UPDATE_DRYRUN) { console.log('[updater] would run', script); return log; }
+    const child = spawn('/bin/bash', [script], { detached: true, stdio: 'ignore' });
+    child.unref();
+    return log;
+  } catch (e) {
+    fs.rmSync(stage, { recursive: true, force: true });
+    throw e;
+  }
+}
+
+module.exports = { check, download, runInstaller, newer, pickAsset, macBundle, macCanSelfUpdate, prepareMacInstall, LATEST_URL, REPO };

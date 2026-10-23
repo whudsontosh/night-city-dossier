@@ -1,14 +1,20 @@
 name: Build and release
 
-# Push a tag like v1.2.0 (matching desktop/package.json) to build the Windows
-# installer and publish it as a GitHub release. Installed apps pick it up on their next launch.
+# Publishes a release whenever desktop/package.json has a version that isn't released yet:
+# bump "version", add a CHANGELOG.md section, push to main. Installed apps update on their next launch.
+# Pushing a matching v* tag works too, and "Run workflow" on the Actions tab makes a test build.
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   windows-installer:
@@ -16,41 +22,59 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Is this version already released?
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="$(node -p "require('./desktop/package.json').version")"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/v* && "v$V" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match desktop/package.json version ($V)."
+            exit 1
+          fi
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Version $V is already released."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then echo "build=false" >> "$GITHUB_OUTPUT"; else echo "build=true" >> "$GITHUB_OUTPUT"; fi
+          else
+            echo "Version $V is new: building and publishing."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.plan.outputs.build == 'true'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
       - name: Install NSIS
+        if: steps.plan.outputs.build == 'true'
         run: sudo apt-get update && sudo apt-get install -y nsis
 
-      - name: Check the tag matches the app version
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          V="v$(node -p "require('./desktop/package.json').version")"
-          if [ "$V" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME doesn't match desktop/package.json version ($V). Bump the version or retag."
-            exit 1
-          fi
-
       - name: Build
+        if: steps.plan.outputs.build == 'true'
         run: bash scripts/build-windows.sh
 
       - name: Keep the build as a workflow artifact
+        if: steps.plan.outputs.build == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: night-city-dossier-${{ github.ref_name }}
+          name: night-city-dossier-${{ steps.plan.outputs.version }}
           path: release/
           retention-days: 14
 
       - name: Publish the release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.plan.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.plan.outputs.version }}
         run: |
-          V=$(node -p "require('./desktop/package.json').version")
-          gh release create "$GITHUB_REF_NAME" release/* \
+          gh release create "v$V" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
             --title "Night City Dossier $V" \
             --notes-file release/notes.md \
             --latest

@@ -18,14 +18,10 @@ The app checks this repository's latest release every time it starts (and from *
 1. Make your changes.
 2. Bump `"version"` in `desktop/package.json` (for example `1.1.0` → `1.2.0`).
 3. Add a `## 1.2.0` section at the top of `CHANGELOG.md`. It becomes the release notes and is shown in the app's update window.
-4. Commit, then tag and push:
-   ```
-   git tag v1.2.0
-   git push origin main --tags
-   ```
-5. The **Build and release** GitHub Action builds the installer and publishes the release (about 5 minutes). Installed apps update on their next launch.
+4. Commit and push to `main`.
+5. The **Build and release** GitHub Action sees the new version, builds the installer and publishes release `v1.2.0` (about 5 minutes). Installed apps update on their next launch.
 
-You can also run the workflow by hand from the Actions tab (**Run workflow**) to get a test build as a downloadable artifact without publishing it.
+Pushes that don't change the version don't make a release. You can also click **Run workflow** on the Actions tab to get a test build as a downloadable artifact.
 
 ## Building locally
 On Linux or WSL with Node 20+, Python 3 and NSIS (`sudo apt install nsis`):

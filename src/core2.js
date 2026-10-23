@@ -171,6 +171,7 @@ function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}ca
 const PAPER_CSS=`
 .page{width:8.5in;min-height:11in;padding:.4in;margin:0 auto 24px;background:#fff;color:#111;box-shadow:0 4px 24px rgba(0,0,0,.35);font-family:"Barlow","Segoe UI",Arial,sans-serif;font-size:10px;line-height:1.3;-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;flex-direction:column;gap:7px}
 .page *{box-sizing:border-box}
+.page th{color:#111!important}.page tr:hover td{background:none!important}.page h3,.page h4{letter-spacing:.06em}.page ::selection{background:#111;color:#fff}
 .pp-head{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:stretch;border:2px solid #111}
 .pp-title{background:#111;color:#fff;padding:8px 12px;display:flex;flex-direction:column;justify-content:center;min-width:1.9in}
 .pp-title b{font-family:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;font-size:30px;font-weight:900;font-style:italic;line-height:.9;letter-spacing:.01em}

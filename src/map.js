@@ -168,7 +168,7 @@ class MapView{
     return hidden}
   draw(){
     const c=this.ctx,dpr=this.dpr,W=this.cw,H=this.ch,m=this.map,z=this.cam.z;
-    c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle="#0b0c11";c.fillRect(0,0,W,H);
+    c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle="#020305";c.fillRect(0,0,W,H);
     if(!m){this.hud.textContent="";return}
     const playerView=this.cfg.role!=="gm"||this.preview;
     c.setTransform(dpr*z,0,0,dpr*z,-this.cam.x*dpr*z,-this.cam.y*dpr*z);
@@ -181,6 +181,9 @@ class MapView{
       if(s*z>=5&&x1>x0&&y1>y0){c.beginPath();for(let x=ox+Math.floor((x0-ox)/s)*s;x<=x1;x+=s){if(x<0)continue;c.moveTo(x,y0);c.lineTo(x,y1)}
         for(let y=oy+Math.floor((y0-oy)/s)*s;y<=y1;y+=s){if(y<0)continue;c.moveTo(x0,y);c.lineTo(x1,y)}
         c.strokeStyle=g.color||"#fff";c.globalAlpha=clamp(Number(g.alpha??0.22),0.03,1);c.lineWidth=1/z;c.stroke();c.globalAlpha=1}}
+    // HUD corner marks around the map edge
+    {const L=Math.min(m.w,m.h)*0.04+14/z;c.strokeStyle="rgba(255,94,79,.85)";c.lineWidth=2/z;c.beginPath();
+      [[0,0,1,1],[m.w,0,-1,1],[0,m.h,1,-1],[m.w,m.h,-1,-1]].forEach(([x,y,sx,sy])=>{c.moveTo(x+sx*L,y);c.lineTo(x,y);c.lineTo(x,y+sy*L)});c.stroke()}
     // drawings
     const strokeD=d=>{const p=d.pts;if(!p||p.length<4)return;c.strokeStyle=d.color||"#fff";c.lineWidth=d.w||3;c.lineCap="round";c.lineJoin="round";c.beginPath();
       if(d.type==="rect"){c.rect(p[0],p[1],p[2]-p[0],p[3]-p[1])}else if(d.type==="circle"){c.arc(p[0],p[1],Math.hypot(p[2]-p[0],p[3]-p[1]),0,Math.PI*2)}else{c.moveTo(p[0],p[1]);for(let i=2;i<p.length;i+=2)c.lineTo(p[i],p[i+1])}
@@ -195,13 +198,13 @@ class MapView{
       c.beginPath();c.arc(t.x,t.y,r*0.94,0,Math.PI*2);c.fillStyle=t.color||"#3d4352";c.fill();
       const ti=t.img?this.img(t.img):null;
       if(ti){c.save();c.beginPath();c.arc(t.x,t.y,r*0.88,0,Math.PI*2);c.clip();const s=Math.max((r*2)/ti.naturalWidth,(r*2)/ti.naturalHeight);c.drawImage(ti,t.x-ti.naturalWidth*s/2,t.y-ti.naturalHeight*s/2,ti.naturalWidth*s,ti.naturalHeight*s);c.restore()}
-      else{c.fillStyle="#fff";c.font=`900 ${Math.round(r*1.05)}px "Big Shoulders Display","Arial Narrow",Impact,sans-serif`;c.textAlign="center";c.textBaseline="middle";c.fillText(String(t.label||"?").trim().charAt(0).toUpperCase()||"?",t.x,t.y+r*0.04)}
+      else{c.fillStyle="#fff";c.font=`700 ${Math.round(r*1.15)}px "Rajdhani","Arial Narrow",sans-serif`;c.textAlign="center";c.textBaseline="middle";c.fillText(String(t.label||"?").trim().charAt(0).toUpperCase()||"?",t.x,t.y+r*0.04)}
       c.lineWidth=Math.max(1.5/z,r*0.07);c.strokeStyle="rgba(255,255,255,.9)";c.beginPath();c.arc(t.x,t.y,r*0.94,0,Math.PI*2);c.stroke();
       const ring=this.cfg.ringFor?this.cfg.ringFor(t):null;
       if(ring&&ring.color){c.lineWidth=Math.max(3/z,r*0.14);c.strokeStyle=ring.color;c.beginPath();c.arc(t.x,t.y,r*1.04,-Math.PI/2,-Math.PI/2+Math.PI*2*clamp(ring.frac??1,0.05,1));c.stroke();
         if(ring.dead){c.strokeStyle="#ff4459";c.lineWidth=Math.max(2/z,r*0.12);c.beginPath();c.moveTo(t.x-r*0.6,t.y-r*0.6);c.lineTo(t.x+r*0.6,t.y+r*0.6);c.moveTo(t.x+r*0.6,t.y-r*0.6);c.lineTo(t.x-r*0.6,t.y+r*0.6);c.stroke()}}
-      if(t.id===this.sel||t.id===this.hover){c.setLineDash([6/z,4/z]);c.lineWidth=2/z;c.strokeStyle=t.id===this.sel?"#38d6f0":"rgba(255,255,255,.6)";c.beginPath();c.arc(t.x,t.y,r*1.18,0,Math.PI*2);c.stroke();c.setLineDash([])}
-      if(hidden&&this.cfg.role==="gm"){c.globalAlpha=1;c.fillStyle="#0b0c11";c.font=`600 ${Math.max(9/z,r*0.3)}px "IBM Plex Mono",monospace`;c.textAlign="center";c.fillText("HIDDEN",t.x,t.y-r*1.3)}
+      if(t.id===this.sel||t.id===this.hover){c.setLineDash([6/z,4/z]);c.lineWidth=2/z;c.strokeStyle=t.id===this.sel?"#3ef2ff":"rgba(255,255,255,.6)";c.beginPath();c.arc(t.x,t.y,r*1.18,0,Math.PI*2);c.stroke();c.setLineDash([])}
+      if(hidden&&this.cfg.role==="gm"){c.globalAlpha=1;c.fillStyle="#0b0c11";c.font=`${Math.max(9/z,r*0.3)}px "Share Tech Mono",monospace`;c.textAlign="center";c.fillText("HIDDEN",t.x,t.y-r*1.3)}
       c.restore();
       labels.push(t)};
     const mine=t=>t.owner&&t.owner===me.playerId;
@@ -229,14 +232,14 @@ class MapView{
     c.setTransform(dpr,0,0,dpr,0,0);
     const label=(t)=>{if(t.hidden&&this.cfg.role!=="gm")return;if(playerView&&!mine(t)&&this.fogHides(m,t.x,t.y))return;const r=this.tokR(t);const s=this.toScreen(t.x,t.y+r*1.02);
       if(s.x<-80||s.x>W+80||s.y<-40||s.y>H+40)return;const text=String(t.label||"");if(!text)return;
-      c.font='600 12px "Barlow","Segoe UI",sans-serif';const w=c.measureText(text).width+10;c.fillStyle="rgba(8,9,14,.78)";c.fillRect(Math.round(s.x-w/2),Math.round(s.y+3),Math.round(w),17);
+      c.font='700 13px "Rajdhani","Segoe UI",sans-serif';const w=c.measureText(text).width+10;c.fillStyle="rgba(3,4,6,.82)";c.fillRect(Math.round(s.x-w/2),Math.round(s.y+3),Math.round(w),17);c.fillStyle="#ff5e4f";c.fillRect(Math.round(s.x-w/2),Math.round(s.y+3),2,17);
       c.fillStyle="#eef0f6";c.textAlign="center";c.textBaseline="middle";c.fillText(text,s.x,s.y+12)};
     labels.forEach(label);ownLabels.forEach(label);
     for(const r of rulers){const cells=Math.hypot(r.b.x-r.a.x,r.b.y-r.a.y)/Math.max(4,Number(g.size)||70);const meters=cells*(Number(g.m)||2);
       const s=this.toScreen(r.b.x,r.b.y);const text=`${meters.toFixed(meters<10?1:0)} m · ${cells.toFixed(1)} sq${r.name?" · "+r.name:""}`;
-      c.font='700 13px "IBM Plex Mono",monospace';const w=c.measureText(text).width+14;c.fillStyle="rgba(8,9,14,.88)";c.fillRect(Math.round(s.x+10),Math.round(s.y-26),Math.round(w),22);
+      c.font='13px "Share Tech Mono",monospace';const w=c.measureText(text).width+14;c.fillStyle="rgba(8,9,14,.88)";c.fillRect(Math.round(s.x+10),Math.round(s.y-26),Math.round(w),22);
       c.fillStyle=r.color;c.fillRect(Math.round(s.x+10),Math.round(s.y-26),3,22);c.fillStyle="#eef0f6";c.textAlign="left";c.textBaseline="middle";c.fillText(text,s.x+17,s.y-15)}
-    if(this.preview&&this.cfg.role==="gm"){c.font='700 12px "IBM Plex Mono",monospace';c.fillStyle="rgba(255,68,89,.9)";c.fillRect(12,12,190,24);c.fillStyle="#fff";c.textAlign="left";c.textBaseline="middle";c.fillText("PREVIEWING PLAYER VIEW",20,24)}
+    if(this.preview&&this.cfg.role==="gm"){c.font='12px "Share Tech Mono",monospace';c.fillStyle="rgba(255,68,89,.9)";c.fillRect(12,12,190,24);c.fillStyle="#fff";c.textAlign="left";c.textBaseline="middle";c.fillText("PREVIEWING PLAYER VIEW",20,24)}
     this.hud.textContent=`${Math.round(z*100)}%`;
     if(this.pings.length||Object.keys(this.remoteRulers).length&&rulers.length)this.invalidate();
   }

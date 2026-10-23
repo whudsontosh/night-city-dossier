@@ -1,7 +1,7 @@
 {
   "name": "night-city-dossier",
   "productName": "Night City Dossier",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Cyberpunk 2020 characters, GM console and online map table",
   "main": "main.js",
   "author": "Night City Dossier",

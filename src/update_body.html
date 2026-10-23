@@ -1,0 +1,25 @@
+<main class="upd">
+  <div class="upd-badge" aria-hidden="true"></div>
+  <div class="upd-main">
+    <span class="label" id="u-kicker">Update</span>
+    <h1 id="u-title">Updating Night City Dossier</h1>
+    <p id="u-msg" class="muted">Getting the new version…</p>
+    <div class="upd-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="u-bar"><i id="u-fill"></i></div>
+    <div class="upd-meta mono" id="u-meta"></div>
+    <details id="u-notes-wrap" hidden><summary>What's new</summary><div id="u-notes" class="upd-notes"></div></details>
+    <div class="row" style="justify-content:flex-end"><button class="btn" id="u-skip">Skip for now</button></div>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const mb=n=>(n/1048576).toFixed(1)+" MB";
+function show(s){
+  if(s.version){$("u-title").textContent="Updating to "+s.version;$("u-kicker").textContent="Version "+s.current+" → "+s.version}
+  if(s.notes){$("u-notes-wrap").hidden=false;$("u-notes").textContent=s.notes}
+  if(s.state==="downloading"){$("u-msg").textContent="Downloading the update. Your characters and campaigns are safe; they're stored separately.";$("u-fill").style.width=(s.pct||0)+"%";$("u-bar").setAttribute("aria-valuenow",s.pct||0);$("u-meta").textContent=s.total?`${mb(s.got||0)} of ${mb(s.total)} · ${s.pct||0}%`:`${s.pct||0}%`}
+  if(s.state==="installing"){$("u-msg").textContent="Installing. Night City Dossier will close and reopen by itself in a few seconds.";$("u-fill").style.width="100%";$("u-meta").textContent="";$("u-skip").hidden=true}
+  if(s.state==="error"){$("u-msg").textContent=s.msg||"The update didn't finish.";$("u-skip").textContent="Continue without updating";$("u-meta").textContent="You can try again from Help → Check for updates."}
+}
+if(window.desk&&window.desk.onUpdate)window.desk.onUpdate(show);
+$("u-skip").addEventListener("click",()=>{if(window.desk)window.desk.updateSkip()});
+</script>

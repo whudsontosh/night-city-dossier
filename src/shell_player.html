@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Night City Dossier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+html{color-scheme:light}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+/*CSS*/
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="wrap">
+    <button class="brand" data-act="go-roster" aria-label="Back to your runners"><b>Night City <i>Dossier</i></b><span>CP2020 · player characters</span></button>
+    <nav id="nav"></nav>
+    <div class="statusline" id="status"><span class="dot"></span><span>Loading…</span></div>
+  </div>
+</div>
+<main class="wrap" id="app"></main>
+<button class="dice-fab" data-act="toggle-tray" aria-label="Open dice tray">D10</button>
+<div id="tray-host"></div>
+<div id="toast-host"></div>
+<div id="modal-host"></div>
+<input type="file" id="file-in" accept=".json,application/json" multiple hidden>
+<script>
+"use strict";
+/*JS*/
+</script>
+</body>
+</html>

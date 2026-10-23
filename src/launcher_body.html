@@ -1,0 +1,12 @@
+<div class="top"><div class="wrap"><span class="brand"><b>Night City <i>Dossier</i></b><span>CP2020 · desktop</span></span></div></div>
+<main class="wrap launch">
+  <h1><small>Welcome, choomba</small>Who's sitting down tonight?</h1>
+  <p class="muted">Pick how you'll use this computer. You can switch any time from the <b>File</b> menu.</p>
+  <div class="launch-grid">
+    <button class="launch-card" data-mode="player"><span class="label">Players</span><b>I'm a player</b><span>Build and run your characters, then join your GM's game with an invite code.</span></button>
+    <button class="launch-card gm" data-mode="gm"><span class="label">Game master</span><b>I'm the GM</b><span>Run the campaign, the encounter tracker and the battle map, and host the game online.</span></button>
+  </div>
+</main>
+<script>
+document.querySelectorAll("[data-mode]").forEach(b=>b.addEventListener("click",()=>{if(window.desk)window.desk.setMode(b.dataset.mode)}));
+</script>

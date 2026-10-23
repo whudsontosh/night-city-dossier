@@ -1,0 +1,56 @@
+name: Build and release
+
+# Push a tag like v1.2.0 (matching desktop/package.json) to build the Windows
+# installer and publish it as a GitHub release. Installed apps pick it up on their next launch.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-installer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install NSIS
+        run: sudo apt-get update && sudo apt-get install -y nsis
+
+      - name: Check the tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          V="v$(node -p "require('./desktop/package.json').version")"
+          if [ "$V" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match desktop/package.json version ($V). Bump the version or retag."
+            exit 1
+          fi
+
+      - name: Build
+        run: bash scripts/build-windows.sh
+
+      - name: Keep the build as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-city-dossier-${{ github.ref_name }}
+          path: release/
+          retention-days: 14
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./desktop/package.json').version")
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --title "Night City Dossier $V" \
+            --notes-file release/notes.md \
+            --latest

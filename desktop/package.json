@@ -1,0 +1,72 @@
+{
+  "name": "night-city-dossier",
+  "productName": "Night City Dossier",
+  "version": "1.1.0",
+  "description": "Cyberpunk 2020 characters, GM console and online map table",
+  "main": "main.js",
+  "author": "Night City Dossier",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "ws": "8.18.0"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8",
+    "resedit": "2.0.3"
+  },
+  "build": {
+    "appId": "com.nightcity.dossier",
+    "productName": "Night City Dossier",
+    "copyright": "Night City Dossier",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "server.js",
+      "tunnel.js",
+      "updater.js",
+      "app/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Night City Dossier",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "artifactName": "Night-City-Dossier-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false
+    },
+    "electronVersion": "33.4.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/whudsontosh/night-city-dossier.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --win --x64 --dir --publish never"
+  }
+}

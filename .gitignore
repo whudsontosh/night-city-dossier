@@ -1,0 +1,8 @@
+node_modules/
+desktop/dist/
+desktop/app/
+dist/
+release/
+*.part
+.DS_Store
+Thumbs.db

@@ -1,3 +1,5 @@
+/* 1.4.0: the desktop app also runs on macOS */
+const IS_MAC=!!(window.desk&&window.desk.platform==="darwin")||(!window.desk&&/Mac/i.test(navigator.platform||""));
 
 /* ============================== SHARED TABLE UI ============================== */
 function b64e(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
@@ -7,8 +9,8 @@ function readInvite(code){code=String(code||"").trim().replace(/\s+/g,"");const 
   try{const j=JSON.parse(b64d(m[1]));if(!/^https?:\/\/[^\s/]+/.test(j.u||""))return null;return {u:j.u.replace(/\/+$/,""),p:String(j.p||""),n:String(j.n||"")}}catch(e){return null}}
 function cleanText(s,n){return String(s??"").replace(/[\u0000-\u001f\u007f]/g," ").trim().slice(0,n)}
 function copyText(text,okMsg){const done=()=>showNotice(okMsg||"Copied.");
-  if(window.desk&&window.desk.copy){window.desk.copy(text).then(done,()=>showNotice("Couldn't copy. Select the text and press Ctrl+C."));return}
-  try{navigator.clipboard.writeText(text).then(done,()=>showNotice("Couldn't copy. Select the text and press Ctrl+C."))}catch(e){showNotice("Couldn't copy. Select the text and press Ctrl+C.")}}
+  if(window.desk&&window.desk.copy){window.desk.copy(text).then(done,()=>showNotice(`Couldn't copy. Select the text and press ${IS_MAC?"Cmd":"Ctrl"}+C.`));return}
+  try{navigator.clipboard.writeText(text).then(done,()=>showNotice(`Couldn't copy. Select the text and press ${IS_MAC?"Cmd":"Ctrl"}+C.`))}catch(e){showNotice(`Couldn't copy. Select the text and press ${IS_MAC?"Cmd":"Ctrl"}+C.`)}}
 const ICONS={
   select:'<path d="M6 3.5l11.5 9-5.2 1.2-2.6 5.3z"/>',
   pan:'<path d="M12 3v18M3 12h18M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5"/>',
@@ -48,7 +50,7 @@ function deskBackupScheduler(kind,getText){let t=null,pending=false;
   const run=()=>{if(!pending)return;pending=false;clearTimeout(t);try{window.desk.backup(typeof kind==="function"?kind():kind,getText())}catch(e){}};
   window.addEventListener("beforeunload",run);document.addEventListener("visibilitychange",()=>{if(document.hidden)run()});
   return ()=>{if(!window.desk||!window.desk.backup)return;pending=true;clearTimeout(t);t=setTimeout(()=>idle(run),4000)}}
-function desktopBackupHTML(){return `<div style="display:grid;gap:6px"><span><span class="chip green">Automatic</span> Backup files are written to your <b>Documents\\Night City Dossier\\backups</b> folder a few seconds after each change. One file per day is kept for 30 days.</span>
+function desktopBackupHTML(){return `<div style="display:grid;gap:6px"><span><span class="chip green">Automatic</span> Backup files are written to your <b>${IS_MAC?"Documents/Night City Dossier/backups":"Documents\\Night City Dossier\\backups"}</b> folder a few seconds after each change. One file per day is kept for 30 days.</span>
   <div class="row"><button class="btn sm" data-act="open-backups">Open backups folder</button></div></div>`}
 
 /* ---------- map sidebar width (1.3.3): drag the sidebar's left edge; remembered on this computer ---------- */

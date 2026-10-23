@@ -6,3 +6,4 @@ release/
 *.part
 .DS_Store
 Thumbs.db
+release-mac/

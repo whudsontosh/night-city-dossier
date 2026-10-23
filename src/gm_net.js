@@ -256,7 +256,8 @@ function hostModalBody(){
         <div class="row"><button class="btn primary" data-act="copy-invite">Copy invite code</button>${Host.mode==="local"?`<button class="btn" data-act="open-player-window">Open a player window</button>`:""}</div>
         <span class="faint" style="font-size:12.5px">Players paste this into <b>Join game</b> in their app. ${Host.mode==="online"?"The code changes each time you go online.":""}</span></div>
       ${pw}
-      <div><span class="label">At the table · ${conns.length}</span>${conns.length?`<div class="items">${conns.map(([cid,i])=>{const c=pc(i.charId);return `<div class="it"><div><div class="t"><span class="dot" style="background:${esc(i.color)}"></span> ${esc(i.name)}</div><div class="m">${esc(c?c.handle||"":"")} ${c?"· "+esc(c.role):""}</div></div><div class="a"><button class="btn sm ghost" data-act="host-kick" data-c="${esc(cid)}">Remove</button><button class="btn sm danger" data-act="host-ban" data-c="${esc(cid)}">${ui.confirm==="ban-"+cid?"Confirm ban":"Ban"}</button></div></div>`}).join("")}</div>`:`<p class="faint" style="margin:4px 0 0">Nobody yet.</p>`}</div>
+      <div><span class="label">At the table · ${conns.length}</span>${conns.length?`<div class="items">${conns.map(([cid,i])=>{const c=pc(i.charId);return `<div class="it"><div><div class="t"><span class="dot" style="background:${esc(i.color)}"></span> ${esc(i.name)}</div><div class="m">${esc(c?c.handle||"":"")} ${c?"· "+esc(c.role):""}</div></div><div class="a"><button class="btn sm ghost" data-act="host-kick" data-c="${esc(cid)}" title="Disconnect them for now; they can rejoin with the invite code">Disconnect</button>${c?`<button class="btn sm danger" data-act="ask-remove-pc" data-id="${esc(c.id)}">Remove from party…</button>`:""}</div></div>`}).join("")}</div>`:`<p class="faint" style="margin:4px 0 0">Nobody yet.</p>`}</div>
+      ${blockedHTML()}
       <div class="row" style="justify-content:space-between"><span class="faint" style="font-size:12.5px">${Host.mode==="online"?"Link provided free by Cloudflare. Keep this app open while you play.":""}</span><button class="btn danger" data-act="host-stop">Stop hosting</button></div>
     </div>`}
   return `<div style="display:grid;gap:14px">${err}
@@ -312,11 +313,15 @@ Object.assign(A,{
   "open-backups":()=>window.desk&&window.desk.openBackups(),
   "host-online":()=>hostOnline(),"host-direct":()=>hostDirect(),"host-local":()=>hostLocal(),"host-stop":()=>hostStop(),
   "host-newpw":()=>{st.host.password=newPassword();pushConfig();save(true);renderModal();if(Host.status==="online")showNotice("New password set. Send players the new invite code.")},
-  "host-kick":el=>{const i=Host.conns.get(el.dataset.c);kick(el.dataset.c,"The GM removed you from the table. You can rejoin with the invite code.");if(i)showNotice(`Removed ${i.name}.`)},
+  "host-kick":el=>{const i=Host.conns.get(el.dataset.c);kick(el.dataset.c,"The GM disconnected you. You can rejoin with the invite code.");if(i)showNotice(`Disconnected ${i.name}.`)},
+  "ask-remove-pc":el=>{ui.rmId=el.dataset.id;ui.rmTyped="";ui.rmBlock=false;ui.modal="remove-pc";renderModal();setTimeout(()=>document.getElementById("rm-confirm")?.focus(),40)},
+  "do-remove-pc":()=>removeFromParty(),
+  "unblock":el=>{const pid=el.dataset.pid;st.host.banned=(st.host.banned||[]).filter(x=>x!==pid);if(st.host.bannedNames)delete st.host.bannedNames[pid];save(true);renderModal();render();showNotice("Unblocked. They can join again with the invite code.")},
   "host-ban":el=>{const c=el.dataset.c;if(ui.confirm!=="ban-"+c){ui.confirm="ban-"+c;renderModal();return}const i=Host.conns.get(c);if(i){st.host.banned=[...(st.host.banned||[]),i.playerId];save()}kick(c,"The GM removed you from this table.");ui.confirm=null;renderModal()},
   "chat-send":()=>{const el=document.getElementById("chat-in");const text=cleanText(el&&el.value,500);if(!text)return;el.value="";addLog({kind:"chat",pid:"gm",who:"GM",color:"#ff4459",text})},
 });
 Object.assign(CHANGE,{
+  "rm-block":el=>{ui.rmBlock=el.checked},
   "tk-hidden":el=>{const t=selTok();if(t){t.hidden=el.checked;save();render();MapV.invalidate()}},
   "tk-owner":el=>{const t=selTok();if(t){t.owner=el.value||null;save();render()}},
   "mm-bool":el=>{const m=curMap();setPath(m,el.dataset.k,el.checked);save();render();MapV.invalidate()},
@@ -329,6 +334,53 @@ document.addEventListener("input",ev=>{const el=ev.target;
 });
 document.addEventListener("toggle",ev=>{const el=ev.target;if(el.dataset&&el.dataset.actToggle==="map-settings")ui.mapSettingsOpen=el.open},true);
 document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.id==="chat-in"){ev.preventDefault();A["chat-send"]()}});
+
+
+/* ---------- removing a runner from the party ---------- */
+function rmNeedle(c){return (c.handle||"").trim()||"REMOVE"}
+function playersOf(charId){return Object.entries(st.roster||{}).filter(([pid,r])=>r.charId===charId)}
+function removePcBody(c){
+  const need=rmNeedle(c);const online=isOnline(c.id);const owners=playersOf(c.id);
+  const toks=(st.maps||[]).reduce((n,m)=>n+m.tokens.filter(t=>t.kind==="pc"&&t.ref===c.id).length,0);
+  const inFight=st.encounter.list.some(x=>x.kind==="pc"&&x.ref===c.id);
+  const who=st.players[c.id]||(owners[0]&&owners[0][1].name)||"";
+  const ok=(ui.rmTyped||"").trim().toLowerCase()===need.toLowerCase();
+  return `<div style="display:grid;gap:14px">
+    <div class="delcard"><div class="portrait" style="background:${esc(c.color||"#3d4352")}">${esc((c.handle||"?").charAt(0).toUpperCase())}</div>
+      <div style="min-width:0"><b class="delname">${esc(c.handle||"Unnamed")}</b><div class="muted" style="font-size:14px">${esc(c.role)}${who?" · played by "+esc(who):""}${online?` · <span style="color:var(--green)">at the table now</span>`:""}</div></div></div>
+    <div><span class="label">What happens</span><ul class="rmlist">
+      <li>The runner leaves your party, along with your private GM notes about them.</li>
+      ${toks?`<li>Their token comes off ${toks===1?"the map":toks+" maps"}.</li>`:""}
+      ${inFight?`<li>They're taken out of the current encounter.</li>`:""}
+      ${online?`<li>${esc(who||"The player")} is disconnected from the table.</li>`:""}
+      <li>The player keeps their own copy of the runner in their app.</li>
+      <li>A restore point is saved first, so you can undo this from <b>Backups → Version history</b>.</li></ul></div>
+    ${owners.length?`<label class="row rmblock" style="gap:8px"><input type="checkbox" id="rm-block" data-act-change="rm-block" ${ui.rmBlock?"checked":""}><span><b>Block ${esc(who||"this player")} from rejoining.</b> If you leave this off and they join again with the invite code, their runner rejoins the party.</span></label>`:""}
+    <div class="field"><label class="label" for="rm-confirm">To confirm, type <span class="mono" style="color:var(--ink);letter-spacing:.04em">${esc(need)}</span></label>
+      <input id="rm-confirm" autocomplete="off" spellcheck="false" data-need="${esc(need.toLowerCase())}" placeholder="${esc(need)}" value="${esc(ui.rmTyped||"")}"></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-act="close-modal">Keep them</button><button class="btn danger" id="rm-go" data-act="do-remove-pc" ${ok?"":"disabled"}>Remove from party</button></div>
+  </div>`}
+function removeFromParty(){
+  const c=pc(ui.rmId);const inp=document.getElementById("rm-confirm");if(!c||!inp)return;
+  if(inp.value.trim().toLowerCase()!==rmNeedle(c).toLowerCase()){showNotice("The name you typed doesn't match.");return}
+  const block=!!(document.getElementById("rm-block")||{}).checked;const name=c.handle||"Runner";const id=c.id;
+  snapshot("Before removing "+name,true);
+  for(const [conn,i] of [...Host.conns]){if(i.charId===id){kick(conn,block?"The GM removed you from this table.":"The GM removed your runner from the party. You can rejoin with the invite code.");Host.conns.delete(conn);delete Host.charSent[conn]}}
+  for(const [pid,r] of playersOf(id)){if(block){st.host.banned=[...new Set([...(st.host.banned||[]),pid])];st.host.bannedNames={...(st.host.bannedNames||{}),[pid]:r.name||name}}delete st.roster[pid]}
+  st.party=st.party.filter(x=>x.id!==id);
+  (st.maps||[]).forEach(m=>{m.tokens=m.tokens.filter(t=>!(t.kind==="pc"&&t.ref===id))});
+  const e=st.encounter;const cur=e.list[e.turn];e.list=e.list.filter(x=>!(x.kind==="pc"&&x.ref===id));const ni=cur?e.list.indexOf(cur):-1;e.turn=ni>=0?ni:Math.min(e.turn,Math.max(0,e.list.length-1));
+  delete st.gmNotes[id];delete st.players[id];
+  if(ui.open===id)ui.open=null;if(ui.mapSel&&!(curMap()||{tokens:[]}).tokens.some(t=>t.id===ui.mapSel))ui.mapSel=null;
+  ui.modal=null;ui.rmId=null;ui.rmTyped="";
+  Host.lastScene="";addLog({kind:"sys",text:`${name} was removed from the party.`});broadcastPresence();
+  save(true);render();if(MapV)MapV.invalidate();
+  showNotice(`${name} removed from the party${block?" and blocked from rejoining":""}. Undo from Backups → Version history.`);
+}
+function blockedHTML(){const b=st.host.banned||[];if(!b.length)return "";
+  return `<div><span class="label">Blocked from rejoining · ${b.length}</span><div class="items">${b.map(pid=>`<div class="it"><div><div class="t">${esc((st.host.bannedNames||{})[pid]||"A player")}</div></div><div class="a"><button class="btn sm ghost" data-act="unblock" data-pid="${esc(pid)}">Unblock</button></div></div>`).join("")}</div></div>`}
+document.addEventListener("input",ev=>{const el=ev.target;if(el.id==="rm-confirm"){ui.rmTyped=el.value;const b=document.getElementById("rm-go");if(b)b.disabled=el.value.trim().toLowerCase()!==el.dataset.need}});
+document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.id==="rm-confirm"){ev.preventDefault();const b=document.getElementById("rm-go");if(b&&!b.disabled)removeFromParty()}});
 
 /* ---------- start ---------- */
 initMapView();

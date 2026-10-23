@@ -2,6 +2,12 @@
 
 Add a section at the top for each new version before pushing the version bump. The text under the version heading becomes the GitHub release notes and is shown in the app's update window.
 
+## 1.3.1
+- GMs can remove players from the party: a Remove button on every row of the Party table, "Remove from party…" on a runner's page, and in the Host game window next to each connected player.
+- The confirmation shows exactly what happens and asks you to type the runner's handle. The runner leaves the party along with their tokens, their place in the current encounter and your GM notes, and the player is disconnected. A restore point is saved first (Backups → Version history).
+- Optionally block the player from rejoining with the invite code. Blocked players are listed in the Host game window with an Unblock button.
+- "Remove" for a connected player is now called "Disconnect": it only drops their connection, and they can rejoin.
+
 ## 1.3.0
 - Guided build: New character now asks Guided or Quick. Guided explains every step's rules in plain words, what each stat and skill does, and which stats your role relies on. "Explain the rules" switches it on part-way through any build.
 - Sheet tips: guided runners show short tips on rolling, Improvement Points, wounds and saves, armor, combat and Humanity. Show tips / Hide tips works on any character.

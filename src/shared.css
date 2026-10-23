@@ -656,3 +656,7 @@ body.dropping::after{border-color:var(--blue);background:rgba(3,4,6,.88);color:v
 .buildopt.rec{border-color:var(--amber);background:linear-gradient(180deg,var(--amber-soft),transparent 70%),var(--panel)}.buildopt.rec b{color:var(--amber)}
 .delcard{display:flex;gap:14px;align-items:center;padding:12px;border:1px solid var(--line2);background:var(--red-soft)}
 .delname{font-family:var(--f-display);font-size:28px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;line-height:1}
+.rmlist{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-size:14.5px;color:var(--ink)}
+.rmlist li::marker{color:var(--red)}
+.rmblock{align-items:flex-start;padding:10px 12px;border:1px solid var(--line);background:rgba(3,4,6,.5);font-size:14px;color:var(--ink2)}
+.rmblock b{color:var(--ink)}.rmblock input{margin-top:3px}

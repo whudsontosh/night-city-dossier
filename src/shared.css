@@ -634,3 +634,25 @@ body.dropping::after{border-color:var(--blue);background:rgba(3,4,6,.88);color:v
   .dot.live{animation:hud-pulse 2.6s ease-in-out infinite}
   @keyframes hud-pulse{50%{opacity:.45}}
 }
+
+/* guided build & delete check (v1.3) */
+.hint{margin:3px 0 0;font-size:13px;line-height:1.35;color:var(--ink2);font-weight:500;letter-spacing:0;text-transform:none;font-family:var(--f-body)}
+.stat .hint{font-size:12px;min-height:3.9em}
+.role .hint{color:var(--ink2)}.role .hint b{color:var(--red)}
+.tip{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;padding:12px 14px;border:1px solid rgba(62,242,255,.35);background:linear-gradient(90deg,rgba(62,242,255,.09),rgba(62,242,255,.02) 70%),rgba(3,4,6,.6);box-shadow:inset 2px 0 0 var(--blue)}
+.tip-k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--blue);padding-top:3px;white-space:nowrap}
+.tip-b{font-size:15px;line-height:1.45;color:var(--ink)}
+.tip-b p{margin:0 0 8px;max-width:78ch}.tip-b p:last-child{margin-bottom:0}
+.tip-b b{color:var(--blue);font-weight:700}
+.tip.sm{grid-template-columns:minmax(0,1fr);gap:4px;padding:9px 11px;margin-bottom:10px}
+.tip.sm .tip-b{font-size:13.5px}
+.guide-step{margin-bottom:16px}
+.buildopts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.buildopts{grid-template-columns:minmax(0,1fr)}}
+.buildopt{display:grid;gap:8px;align-content:start;text-align:left;padding:18px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.buildopt b{font-family:var(--f-display);font-size:30px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;line-height:1}
+.buildopt>span:last-child{color:var(--ink2);font-size:14.5px}
+.buildopt:hover{border-color:var(--blue);box-shadow:0 0 24px -8px rgba(62,242,255,.4)}.buildopt:hover b{color:var(--blue)}
+.buildopt.rec{border-color:var(--amber);background:linear-gradient(180deg,var(--amber-soft),transparent 70%),var(--panel)}.buildopt.rec b{color:var(--amber)}
+.delcard{display:flex;gap:14px;align-items:center;padding:12px;border:1px solid var(--line2);background:var(--red-soft)}
+.delname{font-family:var(--f-display);font-size:28px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;line-height:1}

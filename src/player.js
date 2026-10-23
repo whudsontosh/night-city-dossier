@@ -101,14 +101,14 @@ function viewRoster(){
   return `
   <div class="roster-head">
     <h1><small>Cyberpunk 2020 · player characters</small>Your runners</h1>
-    <div class="row"><button class="btn" data-act="pick-file">Load from file</button><button class="btn primary" data-act="new-char">+ New character</button></div>
+    <div class="row"><button class="btn" data-act="pick-file">Load from file</button><button class="btn primary" data-act="open-modal" data-m="newchar">+ New character</button></div>
   </div>
   ${nudge}
   <div class="roster-layout">
     <section style="min-width:0">
       <div class="cards">
         ${chars.map(cardHTML).join("")}
-        <button class="card new" data-act="new-char"><span class="label">10-minute build</span><h3>+ New runner</h3><span class="muted" style="font-size:13.5px">Pick a role, roll stats, spend skill points, roll a lifepath, buy chrome.</span></button>
+        <button class="card new" data-act="open-modal" data-m="newchar"><span class="label">10-minute build</span><h3>+ New runner</h3><span class="muted" style="font-size:13.5px">Pick a role, roll stats, spend skill points, roll a lifepath, buy chrome.</span></button>
         ${cardHTML(SAMPLE)}
       </div>
       ${!chars.length?`<p class="faint" style="margin-top:14px;font-size:13.5px">Have a backup or a character file from your GM? Drop the .json file anywhere on this page, or use Load from file.</p>`:""}
@@ -137,7 +137,7 @@ function cardHTML(c){
     <div class="meter" title="Humanity ${k.humanity}/${k.humMax}"><i style="width:${hp}%"></i></div>
     <div class="card-foot">
       <button class="btn sm ${c.created?"":"primary"}" data-act="open-char" data-id="${esc(c.id)}">${c.created?"Open sheet":"Continue build"}</button>
-      ${isS?`<button class="btn sm ghost" data-act="copy-sample">Copy to my roster</button>`:`<button class="btn sm ghost" data-act="print-char" data-id="${esc(c.id)}">Paper sheet</button>`}
+      ${isS?`<button class="btn sm ghost" data-act="copy-sample">Copy to my roster</button>`:`<button class="btn sm ghost" data-act="print-char" data-id="${esc(c.id)}">Paper sheet</button><button class="btn sm ghost" data-act="ask-delete" data-id="${esc(c.id)}" aria-label="Delete ${esc(c.handle||"this runner")}">Delete</button>`}
       <span class="faint mono" style="margin-left:auto;font-size:12px">${fmtEb(c.eb)}</span>
     </div>
   </article>`;
@@ -175,8 +175,9 @@ function viewWizard(c){
     <nav class="steps" aria-label="Build steps">${steps}</nav>
     <section style="min-width:0">
       <div class="wiz-h"><div><span class="label">Step ${step+1} of 7 · ${esc(c.handle||"New runner")}</span><h2>${WIZ_STEPS[step][0]}</h2><p>${WIZ_STEPS[step][1]}</p></div>
-        <div class="row"><button class="btn ghost sm" data-act="go-roster">Save & exit</button></div></div>
+        <div class="row">${canEditChar(c)?`<button class="btn ghost sm" data-act="toggle-guide">${c.guide?"Hide explanations":"Explain the rules"}</button><button class="btn ghost sm" data-act="ask-delete" data-id="${esc(c.id)}">Discard draft</button>`:""}<button class="btn ghost sm" data-act="go-roster">Save & exit</button></div></div>
       ${ro?`<div class="banner" style="margin-bottom:12px"><b>Read-only.</b> This draft belongs to another player.</div>`:""}
+      ${guideOn(c)?rg("guide-"+step+"-"+c.role,guideStep(step,c)):""}
       <fieldset style="border:0;padding:0;margin:0;min-width:0" ${ro?"disabled":""}>${bodies[step](c)}</fieldset>
       <div class="wiz-foot">
         <button class="btn" data-act="wiz-go" data-step="${step-1}" ${step===0?"disabled":""}>← Back</button>
@@ -197,7 +198,7 @@ function wizIdentity(c){
       <div class="field" style="grid-column:span 2"><label class="label" for="w-concept">Concept</label><input id="w-concept" data-f="concept" value="${esc(c.concept)}" placeholder="Burned-out corporate bodyguard looking for one last score"></div>
     </div>
     <div class="field"><span class="label">Portrait color</span><div class="swatches">${COLORS.map(col=>`<button class="swatch ${c.color===col?"on":""}" style="background:${col}" data-act="set-color" data-color="${col}" aria-label="Color ${col}"></button>`).join("")}</div></div>
-    <div class="field"><span class="label">Role</span><div class="roles">${ROLE_NAMES.map(r=>`<button class="role ${c.role===r?"on":""}" data-act="set-role" data-role="${r}"><b>${r}</b><span class="ab">${esc(ROLES[r].ab)}</span><p>${esc(ROLES[r].blurb)}</p></button>`).join("")}</div></div>
+    <div class="field"><span class="label">Role</span><div class="roles">${ROLE_NAMES.map(r=>`<button class="role ${c.role===r?"on":""}" data-act="set-role" data-role="${r}"><b>${r}</b><span class="ab">${esc(ROLES[r].ab)}</span><p>${esc(ROLES[r].blurb)}</p>${guideOn(c)?`<p class="hint">Best stats: <b>${ROLE_GUIDE[r].stats.join(" · ")}</b></p>`:""}</button>`).join("")}</div></div>
   </div>`;
 }
 function wizStats(c){
@@ -215,7 +216,7 @@ function wizStats(c){
     </div>
     ${c.statMethod==="cinematic"?`<div class="seg" role="group" aria-label="Pool size">${POOLS.map(p=>`<button class="${pool===p[0]?"on":""}" data-act="set-pool" data-pool="${p[0]}">${p[1]} · ${p[0]}</button>`).join("")}</div>`:""}
     ${isPool?`<div class="pool"><b class="num ${left<0?"over":""}">${left}</b><span class="muted">of ${pool} points left to place${left<0?" — you're over the pool":""}</span></div>`:`<div class="pool"><b class="num">${sum}</b><span class="muted">total from your rolls. Adjust with your GM's blessing.</span></div>`}
-    <div class="stat-grid">${STATS.map(([key,name])=>`<div class="stat"><div class="k"><span>${key}</span><span class="faint">${esc(name)}</span></div><div class="v num">${c.stats[key]}</div>
+    <div class="stat-grid">${STATS.map(([key,name])=>`<div class="stat"><div class="k"><span>${key}</span><span class="faint">${esc(name)}</span></div><div class="v num">${c.stats[key]}</div>${guideOn(c)?`<p class="hint">${esc(STAT_INFO[key])}</p>`:""}
       <div class="ctl"><button class="icon-btn" data-act="stat-step" data-k="${key}" data-d="-1" ${c.stats[key]<=2?"disabled":""} aria-label="Lower ${key}">−</button><button class="icon-btn" data-act="stat-step" data-k="${key}" data-d="1" ${c.stats[key]>=10||(isPool&&left<=0)?"disabled":""} aria-label="Raise ${key}">+</button></div></div>`).join("")}</div>
     <div><span class="label">Derived</span>${derivedHTML(c,k)}</div>
   </div>`;
@@ -236,7 +237,7 @@ function wizCareer(c){
       const lv=name?(sk(c,name).c||0):0;
       return `<div class="sk" style="grid-template-columns:minmax(0,1fr) auto">
         <div class="nm">${isPick?`<select data-act-change="role-choice" data-i="${i-1}" aria-label="Choose skill" style="max-width:260px"><option value="">Choose a skill…</option>${slot.pick.filter(p=>p===name||!list.includes(p)).map(p=>`<option ${p===name?"selected":""}>${esc(p)}</option>`).join("")}</select>`:`${esc(name)}${i===0?` <span class="chip red" style="margin-left:6px">Special</span>`:""}`}
-          ${name?`<em>${skillDef(c,name).s}</em>`:""}</div>
+          ${name?`<em>${skillDef(c,name).s}</em>`:""}${name&&guideOn(c)?`<p class="hint">${esc(skillHint(c,name))}</p>`:""}</div>
         <div class="stepper"><button class="icon-btn" data-act="career-step" data-n="${esc(name||"")}" data-d="-1" ${!name||lv<=0?"disabled":""} aria-label="Lower">−</button><b class="num">${lv}</b><button class="icon-btn" data-act="career-step" data-n="${esc(name||"")}" data-d="1" ${!name||lv>=10||left<=0?"disabled":""} aria-label="Raise">+</button></div>
       </div>`}).join("")}
     </div></div>
@@ -249,7 +250,7 @@ function wizPickup(c){
     <div class="pool"><b class="num ${left<0?"over":""}">${left}</b><span class="muted">of ${pool} pickup points left (REF ${c.stats.REF} + INT ${c.stats.INT}). Totals cap at 10.</span></div>
     <div class="row"><input id="pk-search" data-ui="skSearch" value="${esc(ui.skSearch)}" placeholder="Filter skills" style="max-width:260px" aria-label="Filter skills"><button class="btn sm" data-act="open-modal" data-m="addskill">+ Custom skill (Expert, Language…)</button></div>
     <div class="panel"><div class="panel-b" style="padding-block:6px">
-      ${(rows=>cols2(rows,rows.map(()=>1)))(names.map(n=>{const s=sk(c,n);const tot=skillLevel(c,n);return rg("pk-"+n,`<div class="sk" style="break-inside:avoid;grid-template-columns:minmax(0,1fr) auto"><div class="nm">${esc(n)}<em>${skillDef(c,n).s}</em>${s.c?` <span class="chip ink">career ${s.c}</span>`:""}</div>
+      ${(rows=>cols2(rows,rows.map(()=>1)))(names.map(n=>{const s=sk(c,n);const tot=skillLevel(c,n);return rg("pk-"+n,`<div class="sk" style="break-inside:avoid;grid-template-columns:minmax(0,1fr) auto"><div class="nm">${esc(n)}<em>${skillDef(c,n).s}</em>${s.c?` <span class="chip ink">career ${s.c}</span>`:""}${guideOn(c)?`<p class="hint">${esc(skillHint(c,n))}</p>`:""}</div>
       <div class="stepper"><button class="icon-btn" data-act="pickup-step" data-n="${esc(n)}" data-d="-1" ${(s.p||0)<=0?"disabled":""} aria-label="Lower">−</button><b class="num">${tot}</b><button class="icon-btn" data-act="pickup-step" data-n="${esc(n)}" data-d="1" ${tot>=10||left<=0?"disabled":""} aria-label="Raise">+</button></div></div>`)}))}
     </div></div>
   </div>`;
@@ -320,6 +321,28 @@ function wizReview(c){
   </div>`;
 }
 
+function newCharBody(){
+  const first=!allChars().some(c=>c.created);
+  return `<div style="display:grid;gap:14px">
+    <p class="muted" style="margin:0">Both build the same character in the same 7 steps. Pick how much explaining you want along the way.</p>
+    <div class="buildopts">
+      <button class="buildopt ${first?"rec":""}" data-act="new-char" data-guide="1"><span class="label">${first?"Recommended for your first runner":"Explains as you go"}</span><b>Guided build</b>
+        <span>Every step explains the rules in plain words: what each stat and skill does, which ones matter for your role, how rolls, wounds, armor and cyberware work. Tips stay on your sheet until you hide them.</span></button>
+      <button class="buildopt" data-act="new-char" data-guide="0"><span class="label">You know the rules</span><b>Quick build</b>
+        <span>Just the steps and the numbers. You can switch explanations on at any point with <b>Explain the rules</b>.</span></button>
+    </div></div>`}
+function deleteNeedle(c){return (c.handle||"").trim()||"DELETE"}
+function deleteBody(c){
+  const k=calc(c);const need=deleteNeedle(c);const atTable=typeof Net!=="undefined"&&Net.charId===c.id&&Net.state!=="off";
+  return `<div style="display:grid;gap:14px">
+    <div class="delcard"><div class="portrait" style="background:${esc(c.color||"#3d4352")}">${esc((c.handle||"?").charAt(0).toUpperCase())}</div>
+      <div style="min-width:0"><b class="delname">${esc(c.handle||"Unnamed")}</b><div class="muted" style="font-size:14px">${esc(c.role)}${c.name?" · "+esc(c.name):""} · ${c.created?"finished":"draft"} · ${k.humanity} Humanity · ${fmtEb(c.eb)}</div></div></div>
+    <p style="margin:0">This removes the runner from your roster. It goes to <b>Backups → Recently deleted</b> (the 20 most recent are kept), so you can still bring it back from there.${atTable?" <b>You're at a table with this runner, so deleting it also takes you off the table.</b>":""}</p>
+    <div class="field"><label class="label" for="del-confirm">To confirm, type <span class="mono" style="color:var(--ink);letter-spacing:.04em">${esc(need)}</span></label>
+      <input id="del-confirm" autocomplete="off" spellcheck="false" data-need="${esc(need.toLowerCase())}" placeholder="${esc(need)}" value="${esc(ui.delTyped||"")}"></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-act="close-modal">Keep it</button><button class="btn danger" id="del-go" data-act="do-delete" ${(ui.delTyped||"").trim().toLowerCase()===need.toLowerCase()?"":"disabled"}>Delete runner</button></div>
+  </div>`}
+
 /* ============================== SHEET ============================== */
 function viewSheet(c){
   const k=calc(c);const ed=canEditChar(c);const ipAvail=(c.ip?.total||0)-(c.ip?.spent||0);
@@ -331,7 +354,7 @@ function viewSheet(c){
     <div class="portrait lg" style="background:${esc(c.color||"#3d4352")}">${esc((c.handle||c.name||"?").charAt(0).toUpperCase())}</div>
     <div style="min-width:0"><span class="label">${esc(c.role)} · ${esc(ROLES[c.role]?.ab||"")} ${skillLevel(c,ROLES[c.role]?.ab)}</span><h1>${esc(c.handle||"Unnamed")}</h1>
       <div class="sub">${c.name?`<span>${esc(c.name)}</span>`:""}${c.age?`<span>· age ${esc(c.age)}</span>`:""}${c.id!=="sample"?`<span class="faint">· saved ${ago(c.updatedAt)}</span>`:""}</div>
-      <div class="row" style="gap:6px;margin-top:8px"><button class="btn sm" data-act="print-char">Paper sheet / PDF</button><button class="btn sm" data-act="download-char">Download file</button>${ed?`<button class="btn sm ghost" data-act="open-modal" data-m="backups">History</button><button class="btn sm ghost" data-act="reopen-wiz">Edit build</button><button class="btn sm ghost ${ui.adjust?"blue":""}" data-act="toggle-adjust">${ui.adjust?"Done adjusting":"Adjust stats"}</button>`:""}</div></div>
+      <div class="row" style="gap:6px;margin-top:8px"><button class="btn sm" data-act="print-char">Paper sheet / PDF</button><button class="btn sm" data-act="download-char">Download file</button><button class="btn sm ghost ${guideOn(c)?"blue":""}" data-act="toggle-guide">${guideOn(c)?"Hide tips":"Show tips"}</button>${ed?`<button class="btn sm ghost" data-act="open-modal" data-m="backups">History</button><button class="btn sm ghost" data-act="reopen-wiz">Edit build</button><button class="btn sm ghost ${ui.adjust?"blue":""}" data-act="toggle-adjust">${ui.adjust?"Done adjusting":"Adjust stats"}</button>`:""}</div></div>
     <div class="hstats">
       <div><span class="label">Rep</span><div class="row" style="gap:6px;flex-wrap:nowrap"><b class="num">${c.rep||0}</b>${ed?`<span class="row" style="gap:2px;flex-wrap:nowrap"><button class="icon-btn" style="width:22px;height:22px" data-act="num" data-f="rep" data-d="-1" aria-label="Lower rep">−</button><button class="icon-btn" style="width:22px;height:22px" data-act="num" data-f="rep" data-d="1" aria-label="Raise rep">+</button></span>`:""}</div></div>
       <div><span class="label">IP free</span><b class="num">${ipAvail}</b></div>
@@ -341,26 +364,27 @@ function viewSheet(c){
   </header>`)}
   <div class="sheet">
     <div class="side">
-      ${rg("stats",`<section class="panel cut"><div class="panel-h"><h3>Stats</h3><span class="faint" style="font-size:12.5px">Tap a stat to roll it</span></div><div class="panel-b">
-        <div class="stat-grid">${STAT_KEYS.map(key=>{const b=k.base[key],e=k.eff[key];return `<div class="stat ${ui.adjust?"":"rollable"}"><div class="k"><span>${key}</span>${key==="LUCK"?`<span class="faint">pool</span>`:""}</div>
+      ${rg("stats",`<section class="panel cut"><div class="panel-h"><h3>Stats</h3><span class="faint" style="font-size:12.5px">Tap a stat to roll it</span></div><div class="panel-b">${guideOn(c)?tip(SIDE_TIPS.stats,"sm"):""}
+        <div class="stat-grid">${STAT_KEYS.map(key=>{const b=k.base[key],e=k.eff[key];return `<div class="stat ${ui.adjust?"":"rollable"}" ${guideOn(c)?`title="${esc(STAT_INFO[key])}"`:""}><div class="k"><span>${key}</span>${key==="LUCK"?`<span class="faint">pool</span>`:""}</div>
           <div class="v num">${e}${e!==b?`<small class="${e<b?"down":""}">/${b}</small>`:""}</div>
           ${ui.adjust&&ed?`<div class="ctl"><button class="icon-btn" data-act="adj-stat" data-k="${key}" data-d="-1" aria-label="Lower ${key}">−</button><button class="icon-btn" data-act="adj-stat" data-k="${key}" data-d="1" aria-label="Raise ${key}">+</button></div>`:`<button class="roll" data-act="roll-stat" data-k="${key}" aria-label="Roll ${key} + D10"></button>`}</div>`}).join("")}</div>
         <div class="row" style="justify-content:space-between;margin-top:10px"><span class="faint" style="font-size:12.5px">Luck spent this session: ${c.luckSpent||0}</span>${ed?`<span class="row" style="gap:4px"><button class="btn sm" data-act="num" data-f="luckSpent" data-d="1">Spend 1 Luck</button><button class="btn sm ghost" data-act="set" data-f="luckSpent" data-v="0">Reset</button></span>`:""}</div>
         ${derivedHTML(c,k)}
       </div></section>`)}
-      ${rg("wounds",`<section class="panel"><div class="panel-h"><h3>Wounds</h3><span class="chip ${woundChipClass(k.level)}">${woundLabel(k.level)} · ${k.w}/40</span></div><div class="panel-b">
+      ${rg("wounds",`<section class="panel"><div class="panel-h"><h3>Wounds</h3><span class="chip ${woundChipClass(k.level)}">${woundLabel(k.level)} · ${k.w}/40</span></div><div class="panel-b">${guideOn(c)?tip(SIDE_TIPS.wounds,"sm"):""}
         <div class="wounds">${WOUND_LEVELS.map((lab,g)=>`<div class="wg ${g>=3?"mortal":""}"><span class="wl">${lab}</span><div class="bx">${[1,2,3,4].map(j=>{const n=g*4+j;return `<button class="${n<=k.w?"f":""}" data-act="wound" data-n="${n}" ${ed?"":"disabled"} aria-label="${n} damage"></button>`}).join("")}</div><span class="ss num">Stun ${k.save-g}</span></div>`).join("")}</div>
         <div class="wstate"><button class="btn sm" data-act="roll-save" data-t="stun">Stun save ≤ ${k.stunSave}</button>${k.deathSave!=null?`<button class="btn sm danger" data-act="roll-save" data-t="death">Death save ≤ ${k.deathSave}</button>`:""}
         ${ed?`<span class="row" style="gap:4px;margin-left:auto"><button class="icon-btn" data-act="num" data-f="wounds" data-d="-1" aria-label="Heal 1">−</button><button class="icon-btn" data-act="num" data-f="wounds" data-d="1" aria-label="Take 1">+</button></span>`:""}</div>
         <p class="faint" style="margin:8px 0 0;font-size:12.5px">${k.level===2?"Serious: −2 REF.":k.level===3?"Critical: REF, INT and COOL halved.":k.level>=4?"Mortal: REF, INT and COOL at one third. Make a death save every turn.":"Each box is one point of damage."}</p>
       </div></section>`)}
-      ${rg("armor",`<section class="panel"><div class="panel-h"><h3>Armor</h3><span class="faint mono" style="font-size:12px">EV ${k.ev?"−"+k.ev+" REF":"0"}</span></div><div class="panel-b">
+      ${rg("armor",`<section class="panel"><div class="panel-h"><h3>Armor</h3><span class="faint mono" style="font-size:12px">EV ${k.ev?"−"+k.ev+" REF":"0"}</span></div><div class="panel-b">${guideOn(c)?tip(SIDE_TIPS.armor,"sm"):""}
         <div class="locs">${LOCS.map(([key,lab,rng])=>`<div class="loc"><div class="lk"><span>${lab}</span><span>${rng}</span></div><b class="num">${spAt(c,key)}</b></div>`).join("")}</div>
         <p class="faint" style="margin:8px 0 0;font-size:12.5px">Layered SP uses the proportional armor rule. Damage calculator is on the Combat tab.</p>
       </div></section>`)}
     </div>
     <div style="min-width:0">
       ${rg("tabs",`<nav class="tabs" role="tablist">${tabs.map(t=>`<button role="tab" class="${ui.tab===t[0]?"on":""}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav>`)}
+      ${guideOn(c)&&SHEET_TIPS[ui.tab]?rg("tabtip-"+ui.tab,`<div style="margin-bottom:12px">${tip(SHEET_TIPS[ui.tab])}</div>`):""}
       ${body(c,k,ed)}
     </div>
   </div>`;
@@ -494,7 +518,7 @@ function tabNotes(c,k,ed){
         :`<div class="it"><div><div class="t">${esc(x.name)}</div><div class="m">${esc(x.role)}${x.notes?" · "+esc(x.notes):""}</div></div></div>`).join(""):`<p class="faint" style="padding:14px 0;margin:0">Fixers, docs, cops on the take, people who owe you.</p>`}
     </div></section>
     <section class="panel"><div class="panel-h"><h3>Notes</h3></div><div class="panel-b"><textarea data-f="notes" style="min-height:200px" ${ed?"":"disabled"} aria-label="Notes" placeholder="Jobs, debts, secrets, plans">${esc(c.notes)}</textarea></div></section>
-    ${ed&&c.id!=="sample"?`<section class="panel"><div class="panel-b row" style="justify-content:space-between"><span class="muted" style="font-size:13.5px">Remove this runner from the crew permanently.</span><button class="btn danger" data-act="delete-char">${ui.confirm==="del-"+c.id?"Yes, delete "+esc(c.handle||"this runner"):"Delete character"}</button></div></section>`:""}
+    ${ed&&c.id!=="sample"?`<section class="panel"><div class="panel-b row" style="justify-content:space-between"><span class="muted" style="font-size:13.5px">Delete this runner. You can still restore it from Backups → Recently deleted.</span><button class="btn danger" data-act="ask-delete" data-id="${esc(c.id)}">Delete character…</button></div></section>`:""}
   </div>`;
 }
 
@@ -511,6 +535,8 @@ function renderModal(){
       <div class="field" style="max-width:160px"><label class="label" for="ns-mult">IP difficulty ×</label><input id="ns-mult" type="number" min="1" max="5" value="1"></div>
       <div><button class="btn primary" data-act="add-skill">Add skill</button></div></div>`}
   else if(m==="backups"){title="Backups & version history";body=backupsBody()}
+  else if(m==="newchar"){title="New runner";body=newCharBody()}
+  else if(m==="delete"){const d=S.chars.get(ui.delId);if(!d){ui.modal=null;host.innerHTML="";return}title="Delete "+(d.handle||"this runner")+"?";body=deleteBody(d)}
 
   else {ui.modal=null;host.innerHTML="";return}
   patch(host,`<div class="scrim" data-act="close-modal-bg"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-h"><h2>${esc(title)}</h2><button class="icon-btn" data-act="close-modal" aria-label="Close">×</button></div><div class="modal-b">${body}</div></div></div>`);
@@ -562,7 +588,13 @@ function backupsBody(){
 function mutate(fn,opts={}){const c=curChar();if(!c||!canEditChar(c)){if(c&&c.id==="sample")showNotice("This is the example character. Copy it to your roster to edit.");return}fn(c);saveChar(c,opts.now);render()}
 const A={
   "go-roster":()=>{ui.view="roster";ui.charId=null;ui.modal=null;ui.adjust=false;render();window.scrollTo(0,0)},
-  "new-char":()=>{const c=blankChar();addChar(c);ui.charId=c.id;ui.view="wizard";ui.skSearch="";render();window.scrollTo(0,0)},
+  "new-char":el=>{const c=blankChar();c.guide=!!(el&&el.dataset&&el.dataset.guide==="1");addChar(c);ui.modal=null;ui.charId=c.id;ui.view="wizard";ui.skSearch="";render();window.scrollTo(0,0)},
+  "toggle-guide":()=>{const c=curChar();if(!c)return;if(c.id==="sample"){ui.sampleGuide=!ui.sampleGuide;render();return}c.guide=!c.guide;saveChar(c);render()},
+  "ask-delete":el=>{const id=el.dataset.id||(curChar()&&curChar().id);if(!id||id==="sample")return;ui.delId=id;ui.delTyped="";ui.modal="delete";renderModal();setTimeout(()=>document.getElementById("del-confirm")?.focus(),40)},
+  "do-delete":()=>{const c=S.chars.get(ui.delId);const inp=document.getElementById("del-confirm");if(!c||!inp)return;
+    if(inp.value.trim().toLowerCase()!==deleteNeedle(c).toLowerCase()){showNotice("The name you typed doesn't match.");return}
+    if(typeof Net!=="undefined"&&Net.charId===c.id&&Net.state!=="off")netLeave();
+    const name=c.handle||"Runner";deleteChar(c.id);ui.modal=null;ui.delId=null;if(ui.charId===c.id){ui.charId=null;ui.view="roster"}render();window.scrollTo(0,0);showNotice(`${name} deleted. Restore it from Backups → Recently deleted if you change your mind.`)},
   "open-char":el=>{const id=el.dataset.id;ui.charId=id;const c=curChar();ui.view=c&&!c.created?"wizard":"sheet";ui.tab="skills";ui.editItem=null;ui.dmg.result=null;ui.skSearch="";render();window.scrollTo(0,0)},
   "copy-sample":()=>{const c=clone(SAMPLE);c.id=uid();c.handle=SAMPLE.handle+" (copy)";c.createdAt=Date.now();["weapons","armor","cyber","gear","contacts"].forEach(l=>c[l].forEach(x=>x.id=uid()));addChar(c);ui.charId=c.id;ui.view="sheet";render();showNotice("Copied to your roster.")},
   "reopen-wiz":()=>{ui.view="wizard";render();window.scrollTo(0,0)},
@@ -656,7 +688,7 @@ const A={
     ui.dmg.result={text:`${locName}: ${steps.join(" · ")}. Takes ${fin} damage.${note}`,wounds:fin,ablate:outer?outer.id:null,loc};render()},
   "dmg-apply":()=>mutate(c=>{const r=ui.dmg.result;if(!r)return;c.wounds=clamp((c.wounds||0)+r.wounds,0,40);if(r.ablate){const a=c.armor.find(x=>x.id===r.ablate);if(a){a.dmg=a.dmg||{};a.dmg[r.loc]=(a.dmg[r.loc]||0)+1}}ui.dmg.result=null;ui.dmg.amount=""}),
   "dmg-clear":()=>{ui.dmg.result=null;render()},
-  "delete-char":()=>{const c=curChar();if(ui.confirm!=="del-"+c.id){ui.confirm="del-"+c.id;render();return}deleteChar(c.id);ui.confirm=null;ui.view="roster";ui.charId=null;render();showNotice("Character deleted.")},
+  "delete-char-old":()=>{const c=curChar();if(ui.confirm!=="del-"+c.id){ui.confirm="del-"+c.id;render();return}deleteChar(c.id);ui.confirm=null;ui.view="roster";ui.charId=null;render();showNotice("Character deleted.")},
   "toggle-tray":CORE_ACTIONS["toggle-tray"],"quick-roll":CORE_ACTIONS["quick-roll"],"tray-roll":CORE_ACTIONS["tray-roll"],"tray-clear":CORE_ACTIONS["tray-clear"],
   "download-all":()=>downloadAll(),
   "download-char":()=>{const c=curChar();if(c)downloadChar(c)},
@@ -697,7 +729,9 @@ document.addEventListener("input",ev=>{
     if(el.dataset.f.startsWith("weapons.")&&el.dataset.f.endsWith(".type")){const w=getPath(c,el.dataset.f.split(".").slice(0,2).join("."));if(WTYPE_SKILL[String(v).toUpperCase()])w.skill=WTYPE_SKILL[String(v).toUpperCase()]}}
   else if(el.dataset.ui){setPath(ui,el.dataset.ui,el.value);if(el.dataset.ui==="skSearch"){const pos=el.selectionStart;render();const again=document.getElementById(el.id);if(again){again.focus();try{again.setSelectionRange(pos,pos)}catch(e){}}}}
 });
+document.addEventListener("input",ev=>{const el=ev.target;if(el.id==="del-confirm"){ui.delTyped=el.value;const ok=el.value.trim().toLowerCase()===el.dataset.need;const b=document.getElementById("del-go");if(b)b.disabled=!ok}});
 document.addEventListener("keydown",ev=>{
+  if(ev.key==="Enter"&&ev.target.id==="del-confirm"){ev.preventDefault();const b=document.getElementById("del-go");if(b&&!b.disabled)A["do-delete"]()}
   if(ev.key==="Escape"){if(ui.modal){ui.modal=null;renderModal()}else if(Tray.open){Tray.open=false;Tray.render()}}
   if(ev.key==="Enter"&&ev.target.id==="tray-expr")A["tray-roll"]();
 });

@@ -6,7 +6,7 @@ def build(shell,app,out):
     s=open(shell).read()
     s=s.replace("/*CSS*/",css).replace("/*JS*/",core+"\n"+"\n".join(open(a).read() for a in app))
     open(out,"w").write(s)
-build("shell_player.html",["player.js","player_net.js"],"../dist/night-city-dossier.html")
+build("shell_player.html",["guide.js","player.js","player_net.js"],"../dist/night-city-dossier.html")
 build("shell_gm.html",["gm.js","gm_net.js"],"../dist/night-city-gm-console.html")
 print("built")
 

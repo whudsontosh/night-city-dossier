@@ -114,7 +114,7 @@ function fmtKB(n){return n>1e6?(n/1e6).toFixed(1)+" MB":Math.max(1,Math.round(n/
 // Two balanced columns in plain grid (CSS multi-column layout was the main source of click lag).
 function cols2(parts,weights){const total=weights.reduce((a,b)=>a+b,0);let acc=0,cut=parts.length;
   for(let i=0;i<parts.length;i++){if(acc+weights[i]/2>=total/2){cut=i;break}acc+=weights[i]}
-  if(cut===0&&parts.length>1)cut=1;
+  if(cut===0&&parts.length>0)cut=1;
   return `<div class="cols2"><div>${parts.slice(0,cut).join("")}</div><div>${parts.slice(cut).join("")}</div></div>`}
 const idle=fn=>(window.requestIdleCallback?window.requestIdleCallback(fn,{timeout:1200}):setTimeout(fn,120));
 // Patch the DOM instead of rebuilding it: unchanged nodes stay put, focus and scroll survive.

@@ -402,6 +402,7 @@ function tabSkills(c,k,ed){
   return `<div class="sk-tools">
     <div class="seg" role="group" aria-label="Show"><button class="${ui.skFilter==="trained"?"on":""}" data-act="sk-filter" data-v="trained">Trained</button><button class="${ui.skFilter==="all"?"on":""}" data-act="sk-filter" data-v="all">All skills</button></div>
     <input id="sk-search" data-ui="skSearch" value="${esc(ui.skSearch)}" placeholder="Search skills" aria-label="Search skills">
+    <button class="btn sm primary" data-act="ck-open">Skill check…</button>
     <label class="row" style="gap:6px"><span class="label">Target</span><select data-act-change="set-dv" aria-label="Difficulty value">${DVS.map(x=>`<option value="${x[0]}" ${String(ui.dv)===String(x[0])?"selected":""}>${x[1]||"No DV"}</option>`).join("")}</select></label>
     ${ed?`<button class="btn sm" data-act="open-modal" data-m="addskill">+ Custom skill</button>`:""}
   </div>
@@ -536,6 +537,7 @@ function renderModal(){
       <div><button class="btn primary" data-act="add-skill">Add skill</button></div></div>`}
   else if(m==="backups"){title="Backups & version history";body=backupsBody()}
   else if(m==="newchar"){title="New runner";body=newCharBody()}
+  else if(m==="check"){title="Skill check";body=checkBody()}
   else if(m==="delete"){const d=S.chars.get(ui.delId);if(!d){ui.modal=null;host.innerHTML="";return}title="Delete "+(d.handle||"this runner")+"?";body=deleteBody(d)}
 
   else {ui.modal=null;host.innerHTML="";return}

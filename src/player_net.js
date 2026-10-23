@@ -39,7 +39,7 @@ function onNet(m){
     case "ping":if(PMapV)PMapV.addPing(Number(m.x)||0,Number(m.y)||0,m.color||"#ff4459");return;
     case "ruler":if(PMapV)PMapV.setRemoteRuler(String(m.by),m.r?{...m.r,name:m.name,color:m.color}:null);return;
     case "log":{const e=m.e||{};Net.log.push(e);if(Net.log.length>200)Net.log.shift();
-      if(e.kind==="roll"&&e.pid!==PID)Dice.push({who:e.who,label:e.label,detail:e.detail,total:e.total,dv:e.dv,t:Date.now(),remote:true});
+      if(e.kind==="roll"&&e.pid!==PID)Dice.push({who:e.who,label:e.label,detail:e.detail,total:e.total,dv:e.dv,crit:!!e.crit,fumble:!!e.fumble,t:Date.now(),remote:true});
       else if(e.kind==="chat"&&e.pid!==PID&&ui.view!=="table")showNotice(`${e.who}: ${e.text}`);
       if(ui.view==="table")requestRender();return}
     case "presence":Net.players=m.players||[];requestRender();return;
@@ -59,7 +59,7 @@ function queueCharSend(){clearTimeout(Net.sendT);Net.sendT=setTimeout(()=>{const
 
 /* hooks into the player app */
 {const _saveChar=saveChar;saveChar=function(c,i){_saveChar(c,i);if(Net.state==="online"&&c&&c.id===Net.charId)queueCharSend()}}
-{const _push=Dice.push.bind(Dice);Dice.push=function(e){_push(e);if(!e.remote&&Net.state==="online")netSend({t:"roll",e:{label:e.label,detail:e.detail,total:e.total,dv:e.dv||null}})}}
+{const _push=Dice.push.bind(Dice);Dice.push=function(e){_push(e);if(!e.remote&&Net.state==="online")netSend({t:"roll",e:{label:e.label,detail:e.detail,total:e.total,dv:e.dv||null,crit:!!e.crit,fumble:!!e.fumble}})}}
 {const _who=whoName;whoName=function(){const c=curChar()||myChar();return c?(c.handle||c.name||"Unnamed"):"Player"}}
 const pDeskBackup=deskBackupScheduler("characters",()=>backupText(allChars()));
 {const _persist=persist;persist=function(){_persist();pDeskBackup()}}
@@ -99,7 +99,8 @@ function viewTable(){
   if(c){const k=calc(c);const top=Object.keys(c.skills||{}).filter(n=>skillLevel(c,n)>0).sort((a,b)=>skillLevel(c,b)-skillLevel(c,a)).slice(0,6);
     mine=rg("pt-me",`<section class="ms"><div class="row" style="justify-content:space-between"><h3>${esc(c.handle||"Your runner")}</h3><span class="chip ${woundChipClass(k.level)}">${woundLabel(k.level)} · ${k.w}</span></div>
       <div class="row" style="gap:4px">${top.map(n=>{const def=skillDef(c,n);let base=(k.eff[def.s]||0)+skillLevel(c,n);if(n==="Awareness/Notice"&&c.role==="Solo")base+=skillLevel(c,"Combat Sense");return `<button class="rollbtn" data-act="pt-roll" data-l="${esc(n)}" data-b="${base}">${esc(n)} <b>${base}</b></button>`}).join("")}</div>
-      <div class="row" style="gap:4px">${(c.weapons||[]).slice(0,3).map((w,i)=>`<button class="rollbtn" data-act="pt-wpn" data-i="${i}">${esc(w.name)}</button>`).join("")}<button class="btn sm ghost" data-act="open-char" data-id="${esc(c.id)}">Open sheet</button></div></section>`)}
+      <div class="row" style="gap:4px">${(c.weapons||[]).slice(0,3).map((w,i)=>`<button class="rollbtn" data-act="pt-wpn" data-i="${i}">${esc(w.name)}</button>`).join("")}<button class="btn sm ghost" data-act="open-char" data-id="${esc(c.id)}">Open sheet</button></div>
+      <button class="btn primary" data-act="ck-open">Skill check…</button></section>`)}
   const side=`${rg("pt-conn",`<section class="ms"><div class="row" style="justify-content:space-between"><h3>${esc(Net.table)}</h3>${Net.state==="online"?`<span class="chip green">Connected</span>`:`<span class="chip amber">Reconnecting</span>`}</div>
       <div class="plist">${(Net.players||[]).map(p=>`<div class="pl"><span class="dot" style="background:${esc(p.color)}"></span><b>${esc(p.handle||p.name)}</b><span class="faint">${esc(p.playerId===PID?"you":p.name)}</span></div>`).join("")}</div>
       <div class="row"><button class="btn sm ghost" data-act="net-leave">Leave table</button></div></section>`)}
@@ -107,7 +108,7 @@ function viewTable(){
     <section class="ms tlog-wrap"><h3>Table log</h3>${rg("tlog",`<div class="tlog">${logHTML(Net.log||[],PID)}</div>`)}
       <div class="row" style="flex-wrap:nowrap"><input id="chat-in" placeholder="Message the table" aria-label="Message the table" ${Net.state==="online"?"":"disabled"}><button class="btn sm" data-act="chat-send" ${Net.state==="online"?"":"disabled"}>Send</button></div>
       <p class="faint" style="margin:0;font-size:12px">Rolls you make anywhere in the app are shared with the table while you're connected.</p></section>`;
-  return `<div class="mapwrap"><nav class="map-tools" aria-label="Map tools">${tools}</nav>${stage}<aside class="map-side">${side}</aside></div>`;
+  return `<div class="mapwrap"><nav class="map-tools" aria-label="Map tools">${tools}</nav>${stage}${mapResizeHandle()}<aside class="map-side">${side}</aside></div>`;
 }
 function joinView(){
   const chars=allChars().filter(c=>c.created).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));

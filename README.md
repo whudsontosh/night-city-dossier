@@ -14,15 +14,6 @@ A Cyberpunk 2020 table app for Windows, similar to D&D Beyond: players build and
 ## Updates
 The app checks this repository's latest release every time it starts (and from **Help → Check for updates**). If there's a newer version, it downloads the installer, checks its SHA-256 against `latest.json` in the release, installs it silently and reopens.
 
-## Publishing a new version
-1. Make your changes.
-2. Bump `"version"` in `desktop/package.json` (for example `1.1.0` → `1.2.0`).
-3. Add a `## 1.2.0` section at the top of `CHANGELOG.md`. It becomes the release notes and is shown in the app's update window.
-4. Commit and push to `main`.
-5. The **Build and release** GitHub Action sees the new version, builds the installer and publishes release `v1.2.0` (about 5 minutes). Installed apps update on their next launch.
-
-Pushes that don't change the version don't make a release. You can also click **Run workflow** on the Actions tab to get a test build as a downloadable artifact.
-
 ## Building locally
 On Linux or WSL with Node 20+, Python 3 and NSIS (`sudo apt install nsis`):
 ```
@@ -37,6 +28,6 @@ Output goes to `release/`. To run the app from source: `cd src && python3 build.
 | `desktop/` | Electron shell: window and menus (`main.js`), table server (`server.js`), Cloudflare link (`tunnel.js`), self-updater (`updater.js`) |
 | `desktop/build/` | Icon, Windows installer script (`installer.nsi`) |
 | `scripts/` | Build and release helpers |
-| `.github/workflows/release.yml` | Builds and publishes releases when you push a `v*` tag |
+| `.github/workflows/release.yml` | Builds the Windows installer on GitHub |
 
 See `THIRD-PARTY-NOTICES.md` for bundled fonts and libraries.

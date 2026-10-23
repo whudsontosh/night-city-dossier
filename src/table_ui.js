@@ -22,6 +22,8 @@ const ICONS={
   zin:'<circle cx="11" cy="11" r="6.5"/><path d="M11 8v6M8 11h6M16 16l4 4"/>',
   zout:'<circle cx="11" cy="11" r="6.5"/><path d="M8 11h6M16 16l4 4"/>',
   fit:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  trash:'<path d="M4.5 6.5h15M9.5 6.5V4.5h5v2M6.5 6.5l1 13h9l1-13M10 10v6.5M14 10v6.5"/>',
+  map:'<path d="M3.5 6l5.5-2 6 2 5.5-2v14l-5.5 2-6-2-5.5 2z"/><path d="M9 4v14M15 6v14"/>',
   eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
 };
 function icon(n){return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]||""}</svg>`}
@@ -36,7 +38,7 @@ function logHTML(list,myPid){
   if(!list.length)return `<p class="faint" style="margin:0;font-size:13px">Rolls, chat and who joined show up here.</p>`;
   return list.slice(-80).map(e=>{
     const who=`<b style="color:${esc(e.color||"var(--ink)")}">${esc(e.who||"")}</b>`;
-    if(e.kind==="roll")return `<div class="tl roll"><div style="min-width:0">${who} <span class="faint">rolled</span> ${esc(e.label||"")}<div class="det mono">${esc(e.detail||"")}</div>${e.dv?`<span class="chip ${e.total>=e.dv?"green":"red"}">${e.total>=e.dv?"Beats":"Misses"} DV ${e.dv}</span>`:""}</div><span class="tot num">${esc(e.total)}</span></div>`;
+    if(e.kind==="roll")return `<div class="tl roll"><div style="min-width:0">${who} <span class="faint">rolled</span> ${esc(e.label||"")}<div class="det mono">${esc(e.detail||"")}</div>${rollVerdict(e)}</div><span class="tot num">${esc(e.total)}</span></div>`;
     if(e.kind==="chat")return `<div class="tl chat">${who} <span>${esc(e.text||"")}</span></div>`;
     return `<div class="tl sys">${esc(e.text||"")}</div>`}).join("");
 }
@@ -48,3 +50,24 @@ function deskBackupScheduler(kind,getText){let t=null,pending=false;
   return ()=>{if(!window.desk||!window.desk.backup)return;pending=true;clearTimeout(t);t=setTimeout(()=>idle(run),4000)}}
 function desktopBackupHTML(){return `<div style="display:grid;gap:6px"><span><span class="chip green">Automatic</span> Backup files are written to your <b>Documents\\Night City Dossier\\backups</b> folder a few seconds after each change. One file per day is kept for 30 days.</span>
   <div class="row"><button class="btn sm" data-act="open-backups">Open backups folder</button></div></div>`}
+
+/* ---------- map sidebar width (1.3.3): drag the sidebar's left edge; remembered on this computer ---------- */
+const SIDE_KEY="ncd-map-side-w",SIDE_DEF=420,SIDE_MIN=300;
+function sideMax(){return Math.max(SIDE_MIN,Math.min(900,Math.round(window.innerWidth*0.6)))}
+function sideStored(){try{return Number(localStorage.getItem(SIDE_KEY))||SIDE_DEF}catch(e){return SIDE_DEF}}
+function setSideW(w,keep){w=Math.round(Math.min(sideMax(),Math.max(SIDE_MIN,Number(w)||SIDE_DEF)));document.documentElement.style.setProperty("--map-side-w",w+"px");
+  if(keep)try{localStorage.setItem(SIDE_KEY,String(w))}catch(e){}
+  document.querySelectorAll(".map-resize").forEach(h=>{h.setAttribute("aria-valuenow",String(w));h.setAttribute("aria-valuemax",String(sideMax()))});return w}
+function mapResizeHandle(){const w=Math.min(sideMax(),sideStored());return `<div class="map-resize" role="separator" aria-orientation="vertical" aria-label="Sidebar width. Drag, or use the arrow keys. Double-click to reset." title="Drag to resize the sidebar (double-click to reset)" tabindex="0" aria-valuemin="${SIDE_MIN}" aria-valuemax="${sideMax()}" aria-valuenow="${w}"></div>`}
+setSideW(sideStored());
+window.addEventListener("resize",()=>setSideW(sideStored()));
+document.addEventListener("pointerdown",ev=>{const h=ev.target.closest&&ev.target.closest(".map-resize");if(!h||ev.button!==0)return;
+  const side=h.parentElement&&h.parentElement.querySelector(".map-side");if(!side)return;ev.preventDefault();
+  const x0=ev.clientX,w0=side.getBoundingClientRect().width;let w=w0;try{h.setPointerCapture(ev.pointerId)}catch(e){}document.body.classList.add("side-resizing");
+  const move=e=>{w=setSideW(w0+(x0-e.clientX))};
+  const up=()=>{h.removeEventListener("pointermove",move);h.removeEventListener("pointerup",up);h.removeEventListener("pointercancel",up);document.body.classList.remove("side-resizing");setSideW(w,true)};
+  h.addEventListener("pointermove",move);h.addEventListener("pointerup",up);h.addEventListener("pointercancel",up)});
+document.addEventListener("dblclick",ev=>{if(ev.target.closest&&ev.target.closest(".map-resize"))setSideW(SIDE_DEF,true)});
+document.addEventListener("keydown",ev=>{const h=ev.target;if(!h.classList||!h.classList.contains("map-resize"))return;
+  const cur=sideStored();let w=null;if(ev.key==="ArrowLeft")w=cur+30;else if(ev.key==="ArrowRight")w=cur-30;else if(ev.key==="Home")w=SIDE_MIN;else if(ev.key==="End")w=sideMax();else if(ev.key==="Enter")w=SIDE_DEF;
+  if(w!=null){ev.preventDefault();ev.stopPropagation();setSideW(w,true)}},true);

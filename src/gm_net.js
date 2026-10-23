@@ -134,15 +134,15 @@ function onMsg(conn,m){
         mp.drawings.push(dr);if(mp.drawings.length>600)mp.drawings.shift();save();if(MapV)MapV.invalidate();return}
       if(m.op==="del"){const i=mp.drawings.findIndex(x=>x.id===m.id&&x.by===info.playerId);if(i>=0){mp.drawings.splice(i,1);save();if(MapV)MapV.invalidate()}return}
       return}
-    case "roll":{const e=m.e||{};const c=pc(info.charId);const entry={kind:"roll",pid:info.playerId,who:(c&&c.handle)||info.name,color:info.color,label:cleanText(e.label,80),detail:cleanText(e.detail,140),total:Number(e.total)||0,dv:Number(e.dv)||null};
-      addLog(entry);Dice.push({who:entry.who,label:entry.label,detail:entry.detail,total:entry.total,dv:entry.dv,t:Date.now(),remote:true});return}
+    case "roll":{const e=m.e||{};const c=pc(info.charId);const entry={kind:"roll",pid:info.playerId,who:(c&&c.handle)||info.name,color:info.color,label:cleanText(e.label,80),detail:cleanText(e.detail,140),total:Number(e.total)||0,dv:Number(e.dv)||null,crit:!!e.crit,fumble:!!e.fumble};
+      addLog(entry);Dice.push({who:entry.who,label:entry.label,detail:entry.detail,total:entry.total,dv:entry.dv,crit:entry.crit,fumble:entry.fumble,t:Date.now(),remote:true});return}
     case "chat":{const text=cleanText(m.text,500);if(!text)return;addLog({kind:"chat",pid:info.playerId,who:info.name,color:info.color,text});return}
   }
 }
 
 /* ---------- GM dice: public or hidden ---------- */
 {const _push=Dice.push.bind(Dice);Dice.push=function(e){_push(e);if(e.remote)return;
-  if(Host.status==="online"&&st.host.gmRollsPublic)addLog({kind:"roll",pid:"gm",who:e.who&&e.who!=="GM"?e.who+" (GM)":"GM",color:"#ff4459",label:e.label,detail:e.detail,total:e.total,dv:e.dv||null})}}
+  if(Host.status==="online"&&st.host.gmRollsPublic)addLog({kind:"roll",pid:"gm",who:e.who&&e.who!=="GM"?e.who+" (GM)":"GM",color:"#ff4459",label:e.label,detail:e.detail,total:e.total,dv:e.dv||null,crit:!!e.crit,fumble:!!e.fumble})}}
 
 /* ---------- hooks into the console ---------- */
 {const _save=save;save=function(i){_save(i);scheduleSync()}}
@@ -188,7 +188,7 @@ function viewMap(){
   if(m&&tool==="draw")sub=inkBar(view);
   else if(m&&tool.startsWith("fog"))sub=`<div class="map-sub"><span class="label" style="color:#a1a4b8">Fog</span><button class="btn sm" data-act="fog-all">Cover whole map</button><button class="btn sm" data-act="fog-undo" ${m.fog.shapes.length?"":"disabled"}>Undo last</button><button class="btn sm" data-act="fog-clear" ${m.fog.shapes.length?"":"disabled"}>${ui.confirm==="fog-clear"?"Confirm: remove all fog":"Remove all fog"}</button><span class="faint" style="font-size:12px;color:#a1a4b8">${tool.includes("poly")?"Click points; click the first point or double-click to finish.":"Drag a box."} Players see fog as solid black.</span></div>`;
   const stage=`<div class="map-stage"><div class="map-slot" id="map-slot" data-keep></div>${sub}${!m?`<div class="map-empty"><h3>No map yet</h3><p>Add a map image (PNG, JPG or WebP), or start with a blank grid.</p><div class="row" style="justify-content:center"><button class="btn primary" data-act="map-add-image">Add map image…</button><button class="btn" data-act="map-add-blank">Blank grid</button></div></div>`:""}</div>`;
-  return `<div class="mapwrap"><nav class="map-tools" aria-label="Map tools">${tools}</nav>${stage}<aside class="map-side">${mapSide(m)}</aside></div>`;
+  return `<div class="mapwrap"><nav class="map-tools" aria-label="Map tools">${tools}</nav>${stage}${mapResizeHandle()}<aside class="map-side">${mapSide(m)}</aside></div>`;
 }
 function mapSide(m){
   const n=Host.conns.size;const online=Host.status==="online";
@@ -197,11 +197,30 @@ function mapSide(m){
     ${online?`<div class="row"><button class="btn sm primary" data-act="copy-invite">Copy invite code</button><button class="btn sm" data-act="open-modal" data-m="host">Host settings</button></div>`:`<button class="btn primary" data-act="open-modal" data-m="host">Host game…</button>`}
     ${players.length?`<div class="plist">${players.map(p=>`<div class="pl"><span class="dot" style="background:${esc(p.color)}"></span><b>${esc(p.handle||p.name)}</b><span class="faint">${esc(p.name)}</span></div>`).join("")}</div>`:online?`<p class="faint" style="margin:0;font-size:13px">Waiting for players. Send them the invite code.</p>`:""}</section>`);
   const maps=rg("ms-maps",`<section class="ms"><div class="row" style="justify-content:space-between"><h3>Maps</h3><div class="row" style="gap:4px"><button class="btn sm" data-act="map-add-image">+ Image</button><button class="btn sm ghost" data-act="map-add-blank">+ Blank</button></div></div>
-    ${(st.maps||[]).length?`<div class="mlist">${st.maps.map(x=>`<div class="mi ${m&&x.id===m.id?"on":""}"><button class="mi-name" data-act="map-view" data-id="${esc(x.id)}">${esc(x.name)}</button>${x.id===st.activeMap?`<span class="chip red">Players see</span>`:`<button class="btn sm ghost" data-act="map-activate" data-id="${esc(x.id)}">Show to players</button>`}</div>`).join("")}</div>`:`<p class="faint" style="margin:0;font-size:13px">No maps yet.</p>`}</section>`);
+    ${(st.maps||[]).length?`<div class="mlist">${st.maps.map(x=>`<div class="mi ${m&&x.id===m.id?"on":""}"><button class="mi-name" data-act="map-view" data-id="${esc(x.id)}">${esc(x.name)}</button>${x.id===st.activeMap?`<span class="chip red">Players see</span>`:`<button class="btn sm ghost" data-act="map-activate" data-id="${esc(x.id)}">Show to players</button>`}<button class="icon-btn mi-del" data-act="map-ask-del" data-id="${esc(x.id)}" aria-label="Delete ${esc(x.name)}" title="Delete this map">${icon("trash")}</button></div>`).join("")}</div>`:`<p class="faint" style="margin:0;font-size:13px">No maps yet.</p>`}</section>`);
   if(!m)return host+maps+tableLogSection();
   const t=ui.mapSel?m.tokens.find(x=>x.id===ui.mapSel):null;
   return host+maps+(t?tokenEditor(m,t):"")+tokensSection(m)+mapSettings(m)+tableLogSection();
 }
+/* ---------- deleting a map (1.3.3) ---------- */
+function mapDelBody(x){const live=Host.status==="online";const isActive=x.id===st.activeMap;const rest=st.maps.filter(y=>y.id!==x.id);const next=isActive?rest[0]:null;
+  const pcs=x.tokens.filter(t=>t.kind==="pc").length,npcs=x.tokens.filter(t=>t.kind==="npc").length,marks=x.tokens.length-pcs-npcs;
+  const bits=[];if(pcs)bits.push(`${pcs} runner token${pcs===1?"":"s"}`);if(npcs)bits.push(`${npcs} NPC token${npcs===1?"":"s"}`);if(marks)bits.push(`${marks} marker${marks===1?"":"s"}`);if(x.drawings.length)bits.push(`${x.drawings.length} drawing${x.drawings.length===1?"":"s"}`);if(x.fog.shapes.length)bits.push("its fog");
+  return `<div style="display:grid;gap:14px">
+    <div class="delcard"><div class="portrait" style="background:#3d4352">${icon("map")}</div><div style="min-width:0"><b class="delname">${esc(x.name)}</b><div class="muted" style="font-size:14px">${x.asset?"Map image":"Blank grid"} · ${Math.round(x.w/(Number(x.grid.size)||70))}×${Math.round(x.h/(Number(x.grid.size)||70))} squares${isActive?" · players see this map":""}</div></div></div>
+    <p style="margin:0">This removes the map${bits.length?" along with "+bits.join(", ").replace(/, ([^,]*)$/," and $1"):""}. Characters, the encounter and the party aren't affected.${isActive?(next?` Players will be switched to <b>${esc(next.name)}</b>${live?" right away":""}.`:` It's the only map, so players won't see a map until you add one.`):""}</p>
+    <p class="faint" style="margin:0;font-size:13px">Changed your mind later? Restore <b>Before deleting map "${esc(x.name)}"</b> from Backups → Version history.</p>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-act="close-modal">Keep it</button><button class="btn danger" id="map-del-go" data-act="map-delete">Delete map</button></div></div>`}
+function deleteMap(id){const x=(st.maps||[]).find(y=>y.id===id);if(!x)return;
+  snapshot(`Before deleting map "${cleanText(x.name,60)}"`,true);
+  const wasActive=st.activeMap===id;const wasViewed=curMap()===x;
+  st.maps=st.maps.filter(y=>y.id!==id);
+  if(wasActive){st.activeMap=st.maps[0]?.id||null;onActiveMapChanged()}
+  if(wasViewed||ui.mapId===id)ui.mapId=st.activeMap||st.maps[0]?.id||null;
+  ui.mapSel=null;ui.mapDelId=null;ui.modal=null;ui.confirm=null;
+  addLog({kind:"sys",text:`Map "${cleanText(x.name,60)}" deleted.`});
+  save(true);if(Host.status==="online")syncNow&&syncNow();render();if(MapV)MapV.fit();
+  showNotice(`Deleted "${x.name}".`)}
 function tokenEditor(m,t){
   let link="";
   if(t.kind==="pc"){const c=pc(t.ref);if(c){const k=calc(c);link=`<div class="row" style="justify-content:space-between"><span><span class="chip ${woundChipClass(k.level)}">${woundLabel(k.level)} · ${k.w}</span> <span class="faint" style="font-size:12.5px">${esc(st.players[c.id]||"")}</span></span><span class="row" style="gap:4px"><button class="icon-btn" data-act="tk-wound" data-d="-1" aria-label="Heal 1">−</button><button class="icon-btn" data-act="tk-wound" data-d="1" aria-label="Damage 1">+</button></span></div>`}}
@@ -237,7 +256,7 @@ function mapSettings(m){const g=m.grid;
       <label><input type="checkbox" data-act-change="host-bool" data-k="playersDraw" ${st.host.playersDraw!==false?"checked":""}> Players can draw</label>
       <label><input type="checkbox" data-act-change="host-bool" data-k="showNpcHealth" ${st.host.showNpcHealth?"checked":""}> Show NPC wounds to players</label>
     </div>
-    <div class="row"><button class="btn sm ghost" data-act="map-clear-draw" ${m.drawings.length?"":"disabled"}>${ui.confirm==="clear-draw"?"Confirm: clear drawings":"Clear drawings"}</button><button class="btn sm danger" data-act="map-delete">${ui.confirm==="map-del-"+m.id?"Confirm delete map":"Delete map"}</button></div>
+    <div class="row"><button class="btn sm ghost" data-act="map-clear-draw" ${m.drawings.length?"":"disabled"}>${ui.confirm==="clear-draw"?"Confirm: clear drawings":"Clear drawings"}</button><button class="btn sm danger" data-act="map-ask-del" data-id="${esc(m.id)}">Delete map…</button></div>
   </details>`)}
 function tableLogSection(){
   return `<section class="ms tlog-wrap"><div class="row" style="justify-content:space-between"><h3>Table log</h3><label class="row" style="gap:6px;font-size:12.5px"><input type="checkbox" data-act-change="host-bool" data-k="gmRollsPublic" ${st.host.gmRollsPublic?"checked":""}> My rolls are public</label></div>
@@ -287,8 +306,8 @@ Object.assign(A,{
   "map-add-blank":()=>{const nm=newMapData({name:"Blank grid "+((st.maps||[]).length+1),w:30*70,h:20*70,size:70});st.maps.push(nm);ui.mapId=nm.id;if(!st.activeMap)st.activeMap=nm.id;save(true);render();MapV.fit()},
   "map-view":el=>{ui.mapId=el.dataset.id;ui.mapSel=null;ui.confirm=null;render()},
   "map-activate":el=>{st.activeMap=el.dataset.id;ui.mapId=el.dataset.id;onActiveMapChanged();save(true);render();if(Host.status==="online")showNotice("Players now see this map.")},
-  "map-delete":()=>{const m=curMap();if(!m)return;if(ui.confirm!=="map-del-"+m.id){ui.confirm="map-del-"+m.id;render();return}
-    st.maps=st.maps.filter(x=>x.id!==m.id);if(st.activeMap===m.id){st.activeMap=st.maps[0]?.id||null;onActiveMapChanged()}ui.mapId=st.activeMap;ui.confirm=null;ui.mapSel=null;save(true);render()},
+  "map-ask-del":el=>{if(!(st.maps||[]).some(x=>x.id===el.dataset.id))return;ui.mapDelId=el.dataset.id;ui.modal="map-del";renderModal()},
+  "map-delete":()=>deleteMap(ui.mapDelId),
   "map-clear-draw":()=>{const m=curMap();if(ui.confirm!=="clear-draw"){ui.confirm="clear-draw";render();return}m.drawings=[];ui.confirm=null;save();render();MapV.invalidate()},
   "mm-fitcells":()=>{const m=curMap();const n=clamp(Number(document.getElementById("mm-cells").value)||0,2,200);if(!n)return;m.grid.size=Math.round(m.w/n*100)/100;save();render();MapV.invalidate()},
   "fog-all":()=>{const m=curMap();m.fog.shapes.push({id:uid(),op:"add",type:"rect",pts:[0,0,m.w,m.h]});m.fog.on=true;save();render();MapV.invalidate()},

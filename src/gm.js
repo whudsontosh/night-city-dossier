@@ -324,6 +324,7 @@ function renderModal(){
       <div class="items">${meta.vlist.map((h,i)=>`<div class="it"><div style="min-width:0"><div class="t">${fmtTime(h.t)} <span class="chip ink">${esc(h.label)}</span></div><div class="m">${esc(h.summary||"")}</div></div><div class="a"><button class="btn sm" data-act="hist-restore" data-i="${i}">Restore</button><button class="btn sm ghost" data-act="hist-download" data-i="${i}">Download</button></div></div>`).join("")||`<p class="faint" style="margin:0">Versions appear as you work.</p>`}</div></section>
     <section class="row" style="justify-content:space-between"><span class="faint" style="font-size:12.5px">Browser storage used: ${fmtKB(lsSize(G))}</span><button class="btn sm danger" data-act="clear-history">${ui.confirm==="clear-hist"?"Yes, clear version history":"Clear version history"}</button></section>
   </div>`}
+  else if(m==="map-del"){const x=(st.maps||[]).find(y=>y.id===ui.mapDelId);if(!x){ui.modal=null;host.innerHTML="";return}title=`Delete map "${x.name}"?`;body=mapDelBody(x)}
   else if(m==="camp-del"||m==="camp-switch"||m==="gm-import"){const r=campModal(m);if(!r){ui.modal=null;host.innerHTML="";return}title=r.title;body=r.body}
   else {ui.modal=null;host.innerHTML="";return}
   patch(host,`<div class="scrim" data-act="close-modal-bg"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-h"><h2>${esc(title)}</h2><button class="icon-btn" data-act="close-modal" aria-label="Close">×</button></div><div class="modal-b">${body}</div></div></div>`);

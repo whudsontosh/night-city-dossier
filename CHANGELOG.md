@@ -2,6 +2,15 @@
 
 Add a section at the top for each new version before pushing the version bump. The text under the version heading becomes the GitHub release notes and is shown in the app's update window.
 
+## 1.3.3
+- Dice fixed: the dice tray opens in the bottom-right corner again. Since 1.2.0 it had been landing half off the screen, and on the battle map it squashed the map.
+- Skill check: a simple way to roll any check. Open it from **Skill check…** in the dice tray, on the Skills tab, or in your panel at the table. Pick a skill (search, or show all) or a plain stat, choose how hard it is (Easy 10 to Nearly impossible 30), add a modifier and any Luck you want to spend, and roll. It shows the total, success or failure and the margin. At the table, the roll and its difficulty go to the table log.
+- Rolls follow the CP2020 rules more closely: a natural 1 is a fumble and always fails (with a button to roll for the fumble table), and a natural 10 is marked Critical and rolls again. Fumble and Critical now show in the toast, the dice tray and the table log.
+- The dice tray keeps what you typed after a roll, so you can roll it again, and accepts "d10x" or "d10!" for an exploding D10.
+- Map sidebar: wider by default (420 px), and you can drag its left edge to resize it (or use the arrow keys). The width is remembered; double-click the edge to reset.
+- Delete maps: every map in the Maps list has a delete button. The confirmation says what goes with it and which map players will see instead. A restore point is saved first, so a deleted map can be brought back from Backups → Version history.
+- The README no longer includes the steps for publishing a release.
+
 ## 1.3.2
 - Several campaigns: the GM console now keeps as many campaigns as you like. Each has its own party, maps, encounter, NPCs, notes, session log, room password, version history and backup files.
 - New Campaigns screen (the yellow button with the campaign's name at the left of the menu). Open, rename, duplicate, download or delete a campaign, start a new one (optionally copying your custom NPCs), or import a campaign file.

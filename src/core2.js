@@ -4,8 +4,11 @@ function d10x(){const rolls=[d(10)];if(rolls[0]===10){let x;do{x=d(10);rolls.pus
 const Dice={log:[],key:"",who:()=>"",onChange:null,
   init(key,who){this.key=key;this.who=who;this.log=LS.get(key,[])||[]},
   push(e){this.log.unshift(e);this.log=this.log.slice(0,60);LS.set(this.key,this.log.slice(0,40));showToast(e);Tray.render()},
-  check(label,base,opts={}){const rolls=d10x();const sum=rolls.reduce((a,b)=>a+b,0);const fumble=rolls[0]===1;
-    const e={who:opts.who||this.who(),label,detail:`${base} + d10 (${rolls.join("+")})${fumble?" · FUMBLE":""}${rolls[0]===10?" · CRIT":""}`,total:base+sum,dv:opts.dv?Number(opts.dv):null,crit:rolls[0]===10,fumble,t:Date.now()};
+  // CP2020: STAT + skill + 1D10. A 10 is rolled again and added; a 1 is a fumble (automatic failure).
+  check(label,base,opts={}){const rolls=d10x();const sum=rolls.reduce((a,b)=>a+b,0);const fumble=rolls[0]===1;const crit=rolls[0]===10;
+    base=Number(base)||0;const mod=Number(opts.mod)||0,luck=Math.max(0,Number(opts.luck)||0);
+    const parts=[String(base)];if(mod)parts.push((mod>0?"+ ":"− ")+Math.abs(mod)+" mod");if(luck)parts.push("+ "+luck+" Luck");
+    const e={who:opts.who||this.who(),label,detail:`${parts.join(" ")} + D10 (${rolls.join("+")})${fumble?" · FUMBLE":""}${crit?" · CRITICAL":""}`,total:base+mod+luck+sum,dv:opts.dv?Number(opts.dv):null,crit,fumble,t:Date.now()};
     this.push(e);return e},
   expr(label,expr,bonus=0,who){const r=rollDice(expr);if(!r){showNotice(`"${expr}" isn't a dice expression. Try 2D6+3.`);return null}
     const e={who:who||this.who(),label,detail:`${expr}${bonus?" "+sgn(bonus):""} → ${r.text}${bonus?" "+sgn(bonus):""}`,total:Math.max(0,r.total+bonus),t:Date.now()};this.push(e);return e},
@@ -13,24 +16,30 @@ const Dice={log:[],key:"",who:()=>"",onChange:null,
 };
 const Tray={open:false,shareNote:"Rolls stay on this device",
   render(){const host=document.getElementById("tray-host");if(!host)return;if(!this.open){host.innerHTML="";return}
-    const L=Dice.log;
+    const L=Dice.log;const prev=document.getElementById("tray-expr");const keep=prev?prev.value:(this.lastExpr||"");const focused=prev&&document.activeElement===prev;
     host.innerHTML=`<div class="tray" role="dialog" aria-label="Dice tray">
     <div class="tray-b"><div class="row" style="justify-content:space-between"><b style="font-family:var(--f-display);font-size:22px;text-transform:uppercase">Dice</b><button class="btn sm ghost" data-act="tray-clear">Clear log</button></div>
-      <div class="row" style="gap:6px">${["1D10","1D6","2D6","3D6","4D6","1D10x"].map(e=>`<button class="btn sm" data-act="quick-roll" data-e="${e}">${e==="1D10x"?"D10 (exploding)":e}</button>`).join("")}</div>
-      <div class="row" style="flex-wrap:nowrap"><input id="tray-expr" placeholder="e.g. 4D6+1" aria-label="Dice expression"><button class="btn primary" data-act="tray-roll">Roll</button></div></div>
-    <div class="tray-log">${L.length?L.slice(0,40).map(r=>`<div class="rl"><div style="min-width:0"><div class="who">${esc(r.who)}</div><div class="lbl">${esc(r.label)}</div><div class="det">${esc(r.detail)}</div>${r.dv?`<span class="chip ${r.total>=r.dv?"green":"red"}">${r.total>=r.dv?"Beats":"Misses"} DV ${r.dv}</span>`:""}</div><div class="tot num">${r.total}</div></div>`).join(""):`<p class="faint" style="font-size:13px">Rolls land here.</p>`}</div>
-  </div>`}
+      ${this.extra?this.extra():""}<div class="row" style="gap:6px">${["1D10","1D6","2D6","3D6","4D6","1D10x"].map(e=>`<button class="btn sm" data-act="quick-roll" data-e="${e}">${e==="1D10x"?"D10 (exploding)":e}</button>`).join("")}</div>
+      <div class="row" style="flex-wrap:nowrap"><input id="tray-expr" placeholder="e.g. 4D6+1" aria-label="Dice expression" value="${esc(keep)}"><button class="btn primary" data-act="tray-roll">Roll</button></div></div>
+    <div class="tray-log">${L.length?L.slice(0,40).map(r=>`<div class="rl"><div style="min-width:0"><div class="who">${esc(r.who)}</div><div class="lbl">${esc(r.label)}</div><div class="det">${esc(r.detail)}</div>${rollVerdict(r)}</div><div class="tot num">${r.total}</div></div>`).join(""):`<p class="faint" style="font-size:13px">Rolls land here.</p>`}</div>
+  </div>`;if(focused){const n=document.getElementById("tray-expr");if(n){n.focus();n.select()}}}
 };
 const CORE_ACTIONS={
   "toggle-tray":()=>{Tray.open=!Tray.open;Tray.render()},
   "quick-roll":el=>{const e=el.dataset.e;if(e==="1D10x"){Dice.check("D10",0);return}Dice.expr(e,e)},
-  "tray-roll":()=>{const v=document.getElementById("tray-expr").value.trim();if(v)Dice.expr(v,v)},
+  "tray-roll":()=>{const el=document.getElementById("tray-expr");const v=(el&&el.value||"").trim();if(!v)return;Tray.lastExpr=v;
+    if(/^1?d10\s*(x|!|e)$/i.test(v)){Dice.check("D10",0);return}Dice.expr(v.toUpperCase(),v)},
   "tray-clear":()=>{Dice.log=[];LS.set(Dice.key,[]);Tray.render()},
 };
+// verdict chips shared by the toast, the dice tray and the table log
+function rollVerdict(e){const dv=Number(e&&e.dv)||0;let h="";
+  if(e&&e.fumble)h+=`<span class="chip red">Fumble${dv?" · fails DV "+dv:""}</span>`;
+  else if(dv)h+=e.total>=dv?`<span class="chip green">Beats DV ${dv}</span>`:`<span class="chip red">Misses DV ${dv}</span>`;
+  if(e&&e.crit)h+=` <span class="chip amber">Critical</span>`;return h}
 let toastT=null;
 function showToast(e){
   const host=document.getElementById("toast-host");if(!host)return;
-  const verdict=e.dv?(e.total>=e.dv?`<span class="chip green">Beats DV ${e.dv}</span>`:`<span class="chip red">Misses DV ${e.dv}</span>`):"";
+  const verdict=rollVerdict(e);
   host.innerHTML=`<div class="toast" role="status"><div class="tot num">${e.total}</div><div><div class="lbl">${esc(e.who)} · ${esc(e.label)}</div><div class="det">${esc(e.detail)}</div>${verdict}</div></div>`;
   clearTimeout(toastT);toastT=setTimeout(()=>host.innerHTML="",4200);
 }

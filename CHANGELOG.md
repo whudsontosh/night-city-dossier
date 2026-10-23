@@ -2,6 +2,15 @@
 
 Add a section at the top for each new version before pushing the version bump. The text under the version heading becomes the GitHub release notes and is shown in the app's update window.
 
+## 1.3.2
+- Several campaigns: the GM console now keeps as many campaigns as you like. Each has its own party, maps, encounter, NPCs, notes, session log, room password, version history and backup files.
+- New Campaigns screen (the yellow button with the campaign's name at the left of the menu). Open, rename, duplicate, download or delete a campaign, start a new one (optionally copying your custom NPCs), or import a campaign file.
+- When you have more than one campaign, the GM console opens on the Campaigns screen so you can choose which one to run.
+- Open & host opens a campaign and puts it online straight away, using the hosting mode you used last. If you're already hosting, the app asks first, then closes the old table and disconnects its players before switching. The Host game window shows which campaign is being hosted.
+- Deleting a campaign asks you to type its name. Deleted campaigns go to Recently deleted on the Campaigns screen, where you can restore them.
+- Dropping a GM backup file onto the console now asks whether to add it as a new campaign or replace the open one.
+- Your existing campaign carries over automatically as the first campaign, with its history and backup files.
+
 ## 1.3.1
 - GMs can remove players from the party: a Remove button on every row of the Party table, "Remove from party…" on a runner's page, and in the Host game window next to each connected player.
 - The confirmation shows exactly what happens and asks you to type the runner's handle. The runner leaves the party along with their tokens, their place in the current encounter and your GM notes, and the player is disconnected. A restore point is saved first (Backups → Version history).

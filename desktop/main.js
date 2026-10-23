@@ -121,7 +121,7 @@ function lanIps() {
 }
 
 function writeBackup(kind, text) {
-  if (!/^(campaign|characters)$/.test(kind) || typeof text !== 'string' || text.length > 60 * 1024 * 1024) return false;
+  if (!/^(campaign(-[a-z0-9]+(-[a-z0-9]+)*)?|characters)$/.test(kind) || kind.length > 64 || typeof text !== 'string' || text.length > 60 * 1024 * 1024) return false;
   const day = new Date().toISOString().slice(0, 10);
   const tmp = path.join(BACKUP_DIR, `.${kind}.tmp`);
   fs.writeFileSync(tmp, text);

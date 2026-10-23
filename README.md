@@ -6,7 +6,7 @@ A Cyberpunk 2020 table app for Windows, similar to D&D Beyond: players build and
 
 ## What it does
 - **Players:** guided character builder (roles, stats, career and pickup skills, lifepath, gear and cyberware), live character sheet with dice, wounds, armor, Humanity and IP, paper-sheet PDF export.
-- **GM:** party overview, encounter tracker with initiative and damage, NPC library, campaign notes and session log.
+- **GM:** several campaigns to choose from, each with its own party overview, encounter tracker with initiative and damage, NPC library, campaign notes and session log.
 - **Online table:** the GM clicks **Host game → Go online** and sends players an invite code. When a player joins, their character is saved into the campaign and gets a token on the map. Wounds, cash and IP sync both ways while connected.
 - **Battle map:** map images or blank grids, meter-based ruler, tokens with wound rings, fog of war, drawing, pings, shared dice log and chat.
 - **Your data:** saved automatically, with daily backup files in `Documents\Night City Dossier`. Updates and uninstalling never touch it.

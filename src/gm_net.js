@@ -28,7 +28,7 @@ async function hostInit(){
     if(s.state==="down"&&Host.mode==="online"){Host.status="off";Host.mode="off";Host.err=s.msg;pushConfig();addLog({kind:"sys",text:"The online link dropped. Go online again to let players back in."})}
     requestRender()});
 }
-function setHosting(mode,url){Host.mode=mode;Host.url=url;Host.status="online";Host.err="";pushConfig();Host.lastScene="";addLog({kind:"sys",text:mode==="local"?"Table open on this computer.":"Table is online. Share the invite code."});save(true);render()}
+function setHosting(mode,url){LS.set(G+"host-last",{mode,port:mode==="direct"?Host.directPort:(LS.get(G+"host-last",{})||{}).port||0});Host.mode=mode;Host.url=url;Host.status="online";Host.err="";pushConfig();Host.lastScene="";addLog({kind:"sys",text:mode==="local"?"Table open on this computer.":"Table is online. Share the invite code."});save(true);render()}
 async function hostOnline(){
   if(!window.desk)return;Host.err="";Host.status="starting";Host.mode="online";Host.tunnelMsg="Starting…";render();
   try{const url=await window.desk.tunnelStart();setHosting("online",url)}
@@ -146,7 +146,7 @@ function onMsg(conn,m){
 
 /* ---------- hooks into the console ---------- */
 {const _save=save;save=function(i){_save(i);scheduleSync()}}
-const gmDeskBackup=deskBackupScheduler("campaign",()=>gmBackupText());
+const gmDeskBackup=deskBackupScheduler(()=>campBackupKind(CUR,st.campaign.name),()=>gmBackupText());
 {const _persist=persist;persist=function(){_persist();gmDeskBackup()}}
 if(window.desk){fileLinkHTML=desktopBackupHTML}
 
@@ -250,7 +250,7 @@ function hostModalBody(){
   const pw=`<div class="field"><label class="label" for="host-pw">Room password</label><div class="row" style="flex-wrap:nowrap"><input id="host-pw" data-host="password" value="${esc(st.host.password)}"><button class="btn sm ghost" data-act="host-newpw">New</button></div><span class="faint" style="font-size:12.5px">It's built into the invite code. Change it to lock out anyone with an old code.</span></div>`;
   if(Host.status==="starting")return `<div style="display:grid;gap:14px"><div class="banner"><span class="dot warn"></span> <b>${esc(Host.tunnelMsg||"Starting…")}</b></div><p class="faint" style="margin:0">This usually takes 5–20 seconds.</p></div>`;
   if(Host.status==="online"){const code=inviteCode();const conns=[...Host.conns.entries()];
-    return `<div style="display:grid;gap:16px">
+    return `<div style="display:grid;gap:16px">${hostCampLine()}
       <div class="banner" style="border-style:solid"><span class="chip green">Online</span> <span>${Host.mode==="online"?"Players anywhere can join with the invite code.":Host.mode==="direct"?`Players connect to <b class="mono">${esc(Host.url)}</b>. Your router must forward TCP port ${Host.directPort} to this PC.`:"Only this computer can join (for testing)."}</span></div>
       <div class="field"><span class="label">Invite code</span><textarea id="invite-code" readonly class="mono" style="min-height:74px;font-size:12px">${esc(code)}</textarea>
         <div class="row"><button class="btn primary" data-act="copy-invite">Copy invite code</button>${Host.mode==="local"?`<button class="btn" data-act="open-player-window">Open a player window</button>`:""}</div>
@@ -260,7 +260,7 @@ function hostModalBody(){
       ${blockedHTML()}
       <div class="row" style="justify-content:space-between"><span class="faint" style="font-size:12.5px">${Host.mode==="online"?"Link provided free by Cloudflare. Keep this app open while you play.":""}</span><button class="btn danger" data-act="host-stop">Stop hosting</button></div>
     </div>`}
-  return `<div style="display:grid;gap:14px">${err}
+  return `<div style="display:grid;gap:14px">${err}${hostCampLine()}
     <div class="hostopt rec"><div><h3>Online <span class="chip green">Recommended</span></h3><p>Creates a private link through Cloudflare, so players anywhere can join with no router setup. The first time, the app downloads Cloudflare's free connector (about 55 MB).</p></div><button class="btn primary" data-act="host-online">Go online</button></div>
     <div class="hostopt"><div><h3>Direct connection</h3><p>For when the online link won't work. Players connect straight to your PC, so your router must forward this TCP port to this computer, and Windows will ask you to allow the app through the firewall.</p><div class="row"><label class="row" style="gap:6px"><span class="label">Port</span><input id="host-port" type="number" min="1024" max="65535" value="${Host.directPort}" style="width:100px"></label></div></div><button class="btn" data-act="host-direct">Host directly</button></div>
     <div class="hostopt"><div><h3>This computer only</h3><p>Open the table to a player window on this PC. Good for setting up maps and trying things out.</p></div><button class="btn" data-act="host-local">Host locally</button></div>
@@ -385,4 +385,4 @@ document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.id==="rm
 /* ---------- start ---------- */
 initMapView();
 gmBoot();
-hostInit();
+hostInit().then(campAfterBoot);

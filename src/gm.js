@@ -24,27 +24,46 @@ function npcSP(n,loc){return Math.max(0,(Number(n.armor?.[loc])||0)-(n.armorDmg?
 
 /* ============================== STATE ============================== */
 const G="ncd-gm-";
+/* Each campaign lives under its own keys. The first one keeps the original (pre-1.3.2) keys,
+   so existing campaigns, their version history and their backup files carry on untouched. */
+const CAMP_IDX=G+"campaigns";
+function campKey(id,k){return id==="main"?G+k:G+"c-"+id+"-"+k}
+function campScope(id){return id==="main"?"gm":"gmc-"+id}
+function campSlug(name){return String(name||"").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,32)}
+function campBackupKind(id,name){if(id==="main")return "campaign";const sl=campSlug(name);return "campaign-"+(sl?sl+"-":"")+id}
+function campsLoad(){let x=LS.get(CAMP_IDX,null);
+  if(!x||typeof x!=="object"||!Array.isArray(x.list))x={list:[],current:""};
+  x.list=x.list.filter(c=>c&&typeof c.id==="string"&&/^[a-z0-9]{1,24}$/.test(c.id));
+  if(!x.list.length){const s=LS.get(G+"state",null);
+    x.list.push({id:"main",name:(s&&s.campaign&&s.campaign.name)||"Night City Campaign",created:LS.get(G+"savedAt",0)||Date.now(),updated:LS.get(G+"savedAt",0)||0,summary:s?gmSummary(s):"",crew:s?campCrew(s):[]});x.current="main";lsSet(CAMP_IDX,x)}
+  if(!x.list.some(c=>c.id===x.current))x.current=x.list[0].id;
+  return x}
+function campsSave(x){return lsSet(CAMP_IDX,x)}
+function campCrew(s){return (s.party||[]).slice(0,8).map(c=>String(c&&c.handle||"Unnamed").slice(0,40))}
+const CUR=campsLoad().current;
 function defaultState(){return {campaign:{name:"Night City Campaign",summary:"",notes:"",sessions:[]},party:[],gmNotes:{},players:{},npcs:[],encounter:{round:1,turn:0,list:[]},lastAward:null,maps:[],activeMap:null,roster:{},tableLog:[],host:{password:"",gmRollsPublic:false,playersMove:true,playersDraw:true,showNpcHealth:false,banned:[]}}}
-let st=(()=>{const s=LS.get(G+"state",null);const d0=defaultState();if(!s||typeof s!=="object")return d0;const out={...d0,...s};out.campaign={...d0.campaign,...(s.campaign||{})};out.encounter={...d0.encounter,...(s.encounter||{})};out.host={...d0.host,...(s.host||{})};out.party=(out.party||[]).map(normalizeChar);return out})();
-const meta={lastSaved:LS.get(G+"savedAt",0)||0,lastDownload:LS.get(G+"lastDownload",0)||0,changed:LS.get(G+"changed",false),timer:null,vlist:[]};
+let st=(()=>{const s=LS.get(campKey(CUR,"state"),null);const d0=defaultState();if(!s||typeof s!=="object")return d0;const out={...d0,...s};out.campaign={...d0.campaign,...(s.campaign||{})};out.encounter={...d0.encounter,...(s.encounter||{})};out.host={...d0.host,...(s.host||{})};out.party=(out.party||[]).map(normalizeChar);return out})();
+const meta={lastSaved:LS.get(campKey(CUR,"savedAt"),0)||0,lastDownload:LS.get(campKey(CUR,"lastDownload"),0)||0,changed:LS.get(campKey(CUR,"changed"),false),timer:null,vlist:[]};
 const ui={tab:"party",open:null,npcSel:null,npcSearch:"",modal:null,confirm:null,dmg:{},pendingRender:false,addCount:1,quick:{name:"",REF:6,BODY:6,sp:0}};
-const FileLink=makeFileLink("gm-backup",()=>gmBackupText(),()=>{updateStatus();if(ui.modal==="backups"||ui.tab==="campaign")requestRender()});
+const FileLink=makeFileLink(CUR==="main"?"gm-backup":"gm-backup-"+CUR,()=>gmBackupText(),()=>{updateStatus();if(ui.modal==="backups"||ui.tab==="campaign")requestRender()});
 function gmBackupText(){return JSON.stringify({format:"cp2020-gm-backup",version:2,app:"Night City GM Console",savedAt:new Date().toISOString(),state:st},null,1)}
 let statusSaving=false;
 function save(immediate){if(!statusSaving){statusSaving=true;setStatusText("Saving…","live")}clearTimeout(meta.timer);if(immediate)persist();else meta.timer=setTimeout(()=>idle(persist),600)}
 function persist(){clearTimeout(meta.timer);meta.timer=null;
-  if(!lsSet(G+"state",st)){setStatusText("Storage full: download a backup","warn");showNotice("Browser storage is full. Download a backup, then clear version history.");return}
-  meta.lastSaved=Date.now();LS.set(G+"savedAt",meta.lastSaved);if(!meta.changed){meta.changed=true;LS.set(G+"changed",true)}
-  snapshot();FileLink.schedule();updateStatus()}
+  if(!lsSet(campKey(CUR,"state"),st)){setStatusText("Storage full: download a backup","warn");showNotice("Browser storage is full. Download a backup, then clear version history.");return}
+  meta.lastSaved=Date.now();LS.set(campKey(CUR,"savedAt"),meta.lastSaved);if(!meta.changed){meta.changed=true;LS.set(campKey(CUR,"changed"),true)}
+  campTouch();snapshot();FileLink.schedule();updateStatus()}
+// keep the campaign list (name, party, last played) in step with the open campaign
+function campTouch(){const x=campsLoad();const e=x.list.find(c=>c.id===CUR);if(!e)return;e.name=String(st.campaign.name||"Untitled").slice(0,80);e.updated=Date.now();e.summary=gmSummary(st);e.crew=campCrew(st);campsSave(x)}
 function gmSummary(d0){return `${(d0.party||[]).length} runners · ${(d0.npcs||[]).length} custom NPCs · ${(d0.encounter?.list||[]).length} in encounter · ${(d0.campaign?.sessions||[]).length} sessions`}
 // A new version at most every 5 minutes (or on demand); otherwise just a time check.
 function snapshot(label,force){const last=meta.vlist[0];
   if(!force&&last&&Date.now()-last.t<5*60*1000)return;
-  meta.vlist.unshift(Versions.add("gm",label||"Autosave",clone(st),gmSummary(st)));
+  meta.vlist.unshift(Versions.add(campScope(CUR),label||"Autosave",clone(st),gmSummary(st)));
   if(meta.vlist.length>15)Versions.del(meta.vlist.splice(15).map(m=>m.key))}
 function setStatusText(t,cls){if(cls!=="live"||t!=="Saving…")statusSaving=false;const el=document.getElementById("status");if(el)el.innerHTML=`<span class="dot ${cls||""}"></span><span>${esc(t)}</span>`}
 function updateStatus(){const f=FileLink.status==="linked"?" · backup file synced":FileLink.status==="needs-permission"?" · backup file paused":"";setStatusText(meta.lastSaved?`Autosaved ${fmtTime(meta.lastSaved)}${f}`:"Autosave on"+f,FileLink.status==="needs-permission"?"warn":"live")}
-function markDownloaded(){meta.lastDownload=Date.now();meta.changed=false;LS.set(G+"lastDownload",meta.lastDownload);LS.set(G+"changed",false)}
+function markDownloaded(){meta.lastDownload=Date.now();meta.changed=false;LS.set(campKey(CUR,"lastDownload"),meta.lastDownload);LS.set(campKey(CUR,"changed"),false)}
 window.addEventListener("beforeunload",()=>{if(meta.timer)persist()});
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&meta.timer)persist()});
 setInterval(()=>{if(meta.lastSaved)updateStatus()},30000);
@@ -53,14 +72,18 @@ function allNpcs(){return [...st.npcs,...NPC_TEMPLATES.map(t=>({...t,template:tr
 function findNpc(id){return st.npcs.find(n=>n.id===id)||NPC_TEMPLATES.find(t=>t.id===id)||null}
 
 /* imports */
-function importFiles(files){readFiles(files).then(list=>{let added=0,updated=0,gm=0,bad=0;
+function fullState(data){const d0=defaultState();const out={...d0,...data,campaign:{...d0.campaign,...(data.campaign||{})},encounter:{...d0.encounter,...(data.encounter||{})},host:{...d0.host,...(data.host||{})}};out.party=(out.party||[]).map(normalizeChar);return out}
+function restoreGm(data){snapshot("Before restoring a GM backup",true);st=fullState(data)}
+function importFiles(files){const asNew=ui.importAs==="new";ui.importAs=null;readFiles(files).then(list=>{let added=0,updated=0,gm=0,bad=0;const gmFiles=[];
   list.forEach(f=>{const r=parseBackup(f.text);if(r.error){bad++;return}
-    if(r.gm){snapshot("Before restoring a GM backup",true);const d0=defaultState();st={...d0,...r.gm,campaign:{...d0.campaign,...(r.gm.campaign||{})},encounter:{...d0.encounter,...(r.gm.encounter||{})}};st.party=(st.party||[]).map(normalizeChar);gm++;return}
+    if(r.gm){gmFiles.push({name:f.name,data:r.gm});return}
     if(!r.chars.length){bad++;return}
     r.chars.forEach(x=>{const c=normalizeChar(x);if(c.id==="sample")c.id=uid();const i=st.party.findIndex(p=>p.id===c.id);if(i>=0){st.party[i]=c;updated++}else{st.party.push(c);added++}})});
-  persist();render();
-  const parts=[];if(gm)parts.push("GM backup restored");if(added)parts.push(`${added} character${added>1?"s":""} added to the party`);if(updated)parts.push(`${updated} updated`);
-  showNotice(parts.length?parts.join(", ")+"."+(bad?` ${bad} file${bad>1?"s":""} skipped.`:""):"No characters or GM backup found in that file.")})}
+  if(gmFiles.length&&asNew){gmFiles.forEach(g=>campCreate(g.data.campaign&&g.data.campaign.name||g.name.replace(/\.json$/i,""),g.data));gmFiles.length=0;gm=-1}
+  if(added||updated)persist();render();
+  if(gmFiles.length){ui.gmPending=gmFiles;ui.modal="gm-import";renderModal()}
+  const parts=[];if(gm<0)parts.push("Campaign file imported. It's in your campaign list");if(added)parts.push(`${added} character${added>1?"s":""} added to the party`);if(updated)parts.push(`${updated} updated`);
+  const msg=parts.length?parts.join(", ")+"."+(bad?` ${bad} file${bad>1?"s":""} skipped.`:""):(gmFiles.length?"":"No characters or GM backup found in that file.");if(msg)showNotice(msg)})}
 function playerAppChars(){const l=LS.get("ncd-player-chars",null);return Array.isArray(l)?l.filter(c=>c&&c.stats&&c.created):[]}
 
 /* ============================== ENCOUNTER HELPERS ============================== */
@@ -86,10 +109,10 @@ const app=document.getElementById("app");
 let rq=0;
 function requestRender(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;render()})}
 function render(){if(rq){cancelAnimationFrame(rq);rq=0}renderNav();
-  const v={party:viewParty,encounter:viewEncounter,npcs:viewNpcs,campaign:viewCampaign,reference:viewReference,map:viewMap}[ui.tab]||viewParty;
+  const v={party:viewParty,encounter:viewEncounter,npcs:viewNpcs,campaign:viewCampaign,reference:viewReference,map:viewMap,campaigns:viewCampaigns}[ui.tab]||viewParty;
   patch(app,v());renderModal();afterRender()}
 function renderNav(){const tabs=[["party",`Party · ${st.party.length}`],["encounter",`Encounter${st.encounter.list.length?" · "+st.encounter.list.length:""}`],["map","Map"],["npcs","NPCs"],["campaign","Campaign"],["reference","Rules ref"]];
-  patch(document.getElementById("nav"),tabs.map(t=>`<button class="${ui.tab===t[0]?"on":""}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join("")+`<button data-act="open-modal" data-m="backups">Backups</button>${hostNavBtn()}`)}
+  patch(document.getElementById("nav"),`<button class="campsw${ui.tab==="campaigns"?" on":""}" data-act="tab" data-t="campaigns" title="Switch, create or host another campaign"><span aria-hidden="true">⇄</span> <span class="cn">${esc(st.campaign.name||"Untitled")}</span></button>`+tabs.map(t=>`<button class="${ui.tab===t[0]?"on":""}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join("")+`<button data-act="open-modal" data-m="backups">Backups</button>${hostNavBtn()}`)}
 
 /* ---------- PARTY ---------- */
 function viewParty(){
@@ -295,12 +318,13 @@ function renderModal(){
   else if(m==="backups"){title="Backups & version history";body=`<div style="display:grid;gap:18px">
     <section style="display:grid;gap:8px"><h3 style="font-size:20px;font-weight:800">Back up the campaign</h3>
       <div class="row"><button class="btn primary" data-act="download-all">Download GM backup (.json)</button><button class="btn" data-act="pick-file">Restore from a file…</button></div>
-      <span class="faint" style="font-size:12.5px">A GM backup holds the party, NPCs, encounter, notes and session log. Restoring one replaces the current campaign (the current state goes into history first). Player character files add to or update the party.</span>
+      <span class="faint" style="font-size:12.5px">A GM backup holds the party, NPCs, encounter, notes and session log. When you restore one, you choose whether it replaces this campaign (the current state goes into history first) or becomes a new campaign in your list. Player character files add to or update the party.</span>
       <div style="display:grid;gap:6px;padding:10px;border:1px dashed var(--line)"><span class="label">Synced backup file</span>${fileLinkHTML()}</div></section>
     <section style="display:grid;gap:8px"><div class="row" style="justify-content:space-between"><h3 style="font-size:20px;font-weight:800">Version history</h3><button class="btn sm" data-act="snap-now">Save a version now</button></div>
       <div class="items">${meta.vlist.map((h,i)=>`<div class="it"><div style="min-width:0"><div class="t">${fmtTime(h.t)} <span class="chip ink">${esc(h.label)}</span></div><div class="m">${esc(h.summary||"")}</div></div><div class="a"><button class="btn sm" data-act="hist-restore" data-i="${i}">Restore</button><button class="btn sm ghost" data-act="hist-download" data-i="${i}">Download</button></div></div>`).join("")||`<p class="faint" style="margin:0">Versions appear as you work.</p>`}</div></section>
     <section class="row" style="justify-content:space-between"><span class="faint" style="font-size:12.5px">Browser storage used: ${fmtKB(lsSize(G))}</span><button class="btn sm danger" data-act="clear-history">${ui.confirm==="clear-hist"?"Yes, clear version history":"Clear version history"}</button></section>
   </div>`}
+  else if(m==="camp-del"||m==="camp-switch"||m==="gm-import"){const r=campModal(m);if(!r){ui.modal=null;host.innerHTML="";return}title=r.title;body=r.body}
   else {ui.modal=null;host.innerHTML="";return}
   patch(host,`<div class="scrim" data-act="close-modal-bg"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-h"><h2>${esc(title)}</h2><button class="icon-btn" data-act="close-modal" aria-label="Close">×</button></div><div class="modal-b">${body}</div></div></div>`);
 }
@@ -395,7 +419,7 @@ const A={...CORE_ACTIONS,
   "reconnect-file":()=>FileLink.reconnect(),
   "unlink-file":()=>FileLink.unlink(),
   "snap-now":()=>{snapshot("Saved by hand",true);renderModal();showNotice("Version saved.")},
-  "hist-restore":async el=>{const m=meta.vlist[Number(el.dataset.i)];if(!m)return;const h=await Versions.get(m.key);if(!h){showNotice("That version couldn't be read.");return}const data=clone(h.data);snapshot("Before restore",true);const d0=defaultState();st={...d0,...data,campaign:{...d0.campaign,...(data.campaign||{})},encounter:{...d0.encounter,...(data.encounter||{})}};st.party=(st.party||[]).map(normalizeChar);ui.modal=null;ui.open=null;persist();render();showNotice(`Restored the campaign to ${fmtTime(m.t)}.`)},
+  "hist-restore":async el=>{const m=meta.vlist[Number(el.dataset.i)];if(!m)return;const h=await Versions.get(m.key);if(!h){showNotice("That version couldn't be read.");return}const data=clone(h.data);snapshot("Before restore",true);const d0=defaultState();st=fullState(data);ui.modal=null;ui.open=null;persist();render();showNotice(`Restored the campaign to ${fmtTime(m.t)}.`)},
   "hist-download":async el=>{const m=meta.vlist[Number(el.dataset.i)];if(!m)return;const h=await Versions.get(m.key);if(h)downloadText(`night-city-GM-backup_${stamp(m.t)}.json`,JSON.stringify({format:"cp2020-gm-backup",version:2,savedAt:new Date(m.t).toISOString(),state:h.data},null,1))},
   "clear-history":()=>{if(ui.confirm!=="clear-hist"){ui.confirm="clear-hist";renderModal();return}Versions.del(meta.vlist.map(m=>m.key));meta.vlist=[];ui.confirm=null;renderModal();showNotice("Version history cleared.")},
 };
@@ -420,11 +444,11 @@ document.addEventListener("drop",ev=>{if(ev.dataTransfer?.files?.length){ev.prev
 document.getElementById("file-in").addEventListener("change",ev=>{if(ev.target.files.length)importFiles(ev.target.files);ev.target.value=""});
 document.getElementById("skill-names").innerHTML=[...SKILL_DEFS.map(x=>x[0]),...Object.keys(ABILITIES)].map(n=>`<option value="${esc(n)}">`).join("");
 function gmBoot(){
-Dice.init(G+"rolls",()=>"GM");
+Dice.init(campKey(CUR,"rolls"),()=>"GM");
 render();updateStatus();FileLink.init();
 (async()=>{await Versions.init(G+"versions-fallback");
-  const old=LS.get(G+"history",null);
+  const old=CUR==="main"?LS.get(G+"history",null):null;
   if(Array.isArray(old)){old.slice().reverse().forEach(h=>{if(h&&h.data)Versions.add("gm",h.label||"Autosave",h.data,gmSummary(h.data))});try{localStorage.removeItem(G+"history")}catch(e){}}
-  setTimeout(async()=>{const all=await Versions.listAll("gm");const have=meta.vlist;const keys=new Set((all.gm||[]).map(m=>m.key));meta.vlist=[...have.filter(m=>!keys.has(m.key)),...(all.gm||[])].sort((a,b)=>b.t-a.t).slice(0,15);requestRender()},old?1500:0);
+  setTimeout(async()=>{const sc=campScope(CUR);const all=await Versions.listAll(sc);const mine=all[sc]||[];const have=meta.vlist;const keys=new Set(mine.map(m=>m.key));meta.vlist=[...have.filter(m=>!keys.has(m.key)),...mine].sort((a,b)=>b.t-a.t).slice(0,15);requestRender()},old?1500:0);
 })();
 }

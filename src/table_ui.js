@@ -43,7 +43,7 @@ function logHTML(list,myPid){
 function scrollLogs(){document.querySelectorAll(".tlog").forEach(el=>{if(el.dataset.stick!=="0")el.scrollTop=el.scrollHeight})}
 document.addEventListener("scroll",ev=>{const el=ev.target;if(el.classList&&el.classList.contains("tlog"))el.dataset.stick=(el.scrollHeight-el.scrollTop-el.clientHeight<30)?"1":"0"},true);
 function deskBackupScheduler(kind,getText){let t=null,pending=false;
-  const run=()=>{if(!pending)return;pending=false;clearTimeout(t);try{window.desk.backup(kind,getText())}catch(e){}};
+  const run=()=>{if(!pending)return;pending=false;clearTimeout(t);try{window.desk.backup(typeof kind==="function"?kind():kind,getText())}catch(e){}};
   window.addEventListener("beforeunload",run);document.addEventListener("visibilitychange",()=>{if(document.hidden)run()});
   return ()=>{if(!window.desk||!window.desk.backup)return;pending=true;clearTimeout(t);t=setTimeout(()=>idle(run),4000)}}
 function desktopBackupHTML(){return `<div style="display:grid;gap:6px"><span><span class="chip green">Automatic</span> Backup files are written to your <b>Documents\\Night City Dossier\\backups</b> folder a few seconds after each change. One file per day is kept for 30 days.</span>

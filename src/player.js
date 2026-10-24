@@ -429,16 +429,16 @@ function tabCombat(c,k,ed){
       <span class="faint" style="font-size:12.5px">REF ${k.eff.REF}${c.role==="Solo"?` + Combat Sense ${cs}`:""}${k.init?` + boosters ${k.init}`:""}</span></div>
       <label class="row" style="gap:6px"><span class="label">Range</span><select data-act-change="set-range" aria-label="Range DV">${RANGE_DVS.map(r=>`<option value="${r[0]}" ${Number(ui.rangeDv)===r[0]?"selected":""}>${r[1]} · DV ${r[0]}</option>`).join("")}</select></label>
     </div></div>
-    <section class="panel"><div class="panel-h"><h3>Weapons</h3>${ed?`<div class="row"><button class="btn sm" data-act="open-modal" data-m="shop" data-tab="Weapons">+ From catalog</button><button class="btn sm ghost" data-act="add-blank" data-list="weapons">+ Custom</button></div>`:""}</div>
+    <section class="panel"><div class="panel-h"><h3>Weapons</h3>${ed?`<div class="row"><button class="btn sm primary" data-act="atk-open">Attack…</button><button class="btn sm" data-act="open-modal" data-m="shop" data-tab="Weapons">+ From catalog</button><button class="btn sm ghost" data-act="add-blank" data-list="weapons">+ Custom</button></div>`:""}</div>
       <div class="panel-b items" style="padding-block:0">
       ${c.weapons.length?c.weapons.map((w,i)=>{const skill=w.skill||WTYPE_SKILL[w.type]||"Handgun";const lvl=skillLevel(c,skill);const toHit=k.eff.REF+lvl+(Number(w.wa)||0)+(k.smart&&w.type!=="MEL"?2:0);
         const mel=w.type==="MEL";const shots=Number(w.shots)||0;
-        return rg("w-"+w.id,`<div class="it"><div style="min-width:0"><div class="t">${esc(w.name)}</div>
+        return rg("w-"+w.id,`<div class="it" data-info="own:weapons:${esc(w.id)}"><div style="min-width:0"><div class="t">${esc(w.name)}</div>
           <div class="m">${esc(w.type)} · WA ${sgn(Number(w.wa)||0)} · ${esc(w.dmg)}${mel&&k.melee?` ${sgn(k.melee)} STR`:""} · ROF ${esc(w.rof)} · ${esc(w.range)} · ${esc(w.rel)} · uses ${esc(skill)} ${lvl}${k.smart&&!mel?" · smartlinked +2":""}</div>
           ${shots?`<div class="row" style="margin-top:6px;gap:8px"><div class="ammo" aria-label="${w.ammo} of ${shots} rounds">${Array.from({length:Math.min(shots,50)},(_,j)=>`<i class="${j<w.ammo?"":"e"}"></i>`).join("")}</div><span class="mono faint" style="font-size:12px">${w.ammo}/${shots}</span>
           ${ed?`<button class="btn sm ghost" data-act="ammo" data-i="${i}" data-d="-1">−1</button>${Number(w.rof)>2?`<button class="btn sm ghost" data-act="ammo" data-i="${i}" data-d="-${Math.min(Number(w.rof),3)}">Burst −3</button><button class="btn sm ghost" data-act="ammo" data-i="${i}" data-d="-${Number(w.rof)}">Full auto −${esc(w.rof)}</button>`:""}<button class="btn sm ghost" data-act="ammo" data-i="${i}" data-d="reload">Reload</button>`:""}</div>`:""}
         </div>
-        <div class="a"><button class="rollbtn" data-act="roll-attack" data-i="${i}" data-b="${toHit}">Hit <b>${toHit}</b>+D10</button><button class="rollbtn" data-act="roll-dmg" data-i="${i}">Dmg <b>${esc(w.dmg)}</b></button>${ed?`<button class="btn sm ghost" data-act="edit-item" data-id="${w.id}">${ui.editItem===w.id?"Close":"Edit"}</button>`:""}</div>
+        <div class="a"><button class="btn sm primary" data-act="atk-open" data-id="${esc(w.id)}">Attack…</button><button class="rollbtn" data-act="roll-attack" data-i="${i}" data-b="${toHit}">Hit <b>${toHit}</b>+D10</button><button class="rollbtn" data-act="roll-dmg" data-i="${i}">Dmg <b>${esc(w.dmg)}</b></button>${ed?`<button class="btn sm ghost" data-act="edit-item" data-id="${w.id}">${ui.editItem===w.id?"Close":"Edit"}</button>`:""}</div>
         ${ui.editItem===w.id&&ed?itemEditor(c,"weapons",i,[["name","Name","text"],["type","Type (P/SMG/RIF/SHT/HVY/MEL)","text"],["wa","WA","number"],["dmg","Damage","text"],["shots","Magazine","number"],["rof","ROF","text"],["range","Range","text"],["rel","Reliability","text"],["skill","Skill","text"],["cost","Cost","number"]]):""}
         </div>`)}).join(""):`<p class="faint" style="padding:14px 0;margin:0">No weapons. Add one from the catalog.</p>`}
     </div></section>
@@ -453,7 +453,7 @@ function tabCombat(c,k,ed){
       ${res?`<div class="calc-out"><div>${esc(res.text)}</div>${res.wounds>0&&ed?`<div class="row"><button class="btn primary sm" data-act="dmg-apply">Apply ${res.wounds} damage${res.ablate?" and ablate armor":""}</button><button class="btn sm ghost" data-act="dmg-clear">Dismiss</button></div>`:`<div><button class="btn sm ghost" data-act="dmg-clear">Dismiss</button></div>`}</div>`:""}
     </div></section>
     <section class="panel"><div class="panel-h"><h3>Armor worn</h3>${ed?`<div class="row"><button class="btn sm" data-act="open-modal" data-m="shop" data-tab="Armor">+ From catalog</button><button class="btn sm ghost" data-act="add-blank" data-list="armor">+ Custom</button></div>`:""}</div><div class="panel-b items" style="padding-block:0">
-      ${c.armor.length?c.armor.map((a,i)=>{const dm=Object.entries(a.dmg||{}).filter(x=>x[1]>0);return `<div class="it"><div style="min-width:0"><div class="t">${esc(a.name)} ${a.worn?`<span class="chip green">Worn</span>`:`<span class="chip ink">Stowed</span>`}</div>
+      ${c.armor.length?c.armor.map((a,i)=>{const dm=Object.entries(a.dmg||{}).filter(x=>x[1]>0);return `<div class="it" data-info="own:armor:${esc(a.id)}"><div style="min-width:0"><div class="t">${esc(a.name)} ${a.worn?`<span class="chip green">Worn</span>`:`<span class="chip ink">Stowed</span>`}</div>
         <div class="m">SP ${esc(a.sp)} · ${a.locs.map(l=>LOCS.find(x=>x[0]===l)?.[1]).join(", ")} · EV ${esc(a.ev)}${dm.length?` · ablated: ${dm.map(([l,v])=>LOCS.find(x=>x[0]===l)?.[1]+" −"+v).join(", ")}`:""}</div></div>
         <div class="a">${ed?`<button class="btn sm" data-act="toggle-worn" data-i="${i}">${a.worn?"Take off":"Wear"}</button>${dm.length?`<button class="btn sm ghost" data-act="repair-armor" data-i="${i}">Repair</button>`:""}<button class="btn sm ghost" data-act="edit-item" data-id="${a.id}">${ui.editItem===a.id?"Close":"Edit"}</button>`:""}</div>
         ${ui.editItem===a.id&&ed?itemEditor(c,"armor",i,[["name","Name","text"],["sp","SP","number"],["ev","EV","number"],["cost","Cost","number"]],`<div class="field" style="grid-column:1/-1"><span class="label">Covers</span><div class="row">${LOCS.map(l=>`<label class="row" style="gap:4px"><input type="checkbox" data-act-change="armor-loc" data-i="${i}" data-loc="${l[0]}" ${a.locs.includes(l[0])?"checked":""}>${l[1]}</label>`).join("")}</div></div>`):""}
@@ -481,7 +481,7 @@ function tabCyber(c,k,ed){
     </div></section>
     <section class="panel"><div class="panel-h"><h3>Installed cyberware</h3>${ed?`<div class="row"><button class="btn sm" data-act="open-modal" data-m="shop" data-tab="Cyberware">+ From catalog</button><button class="btn sm ghost" data-act="add-blank" data-list="cyber">+ Custom</button></div>`:""}</div>
       <div class="panel-b items" style="padding-block:0">
-      ${c.cyber.length?cats.map(cat=>`<div class="label" style="padding-top:12px">${esc(cat)}</div>${c.cyber.map((x,i)=>(x.cat||"Other")!==cat?"":`<div class="it"><div style="min-width:0"><div class="t">${esc(x.name)}</div>
+      ${c.cyber.length?cats.map(cat=>`<div class="label" style="padding-top:12px">${esc(cat)}</div>${c.cyber.map((x,i)=>(x.cat||"Other")!==cat?"":`<div class="it" data-info="own:cyber:${esc(x.id)}"><div style="min-width:0"><div class="t">${esc(x.name)}</div>
         <div class="m">HC ${esc(x.hc||"—")} → lost ${esc(x.hcLoss)} · ${fmtEb(x.cost)}${x.init?` · +${x.init} initiative`:""}${x.armor?` · SP ${x.armor.sp}`:""}${x.mods?Object.entries(x.mods).map(([m,v])=>` · ${sgn(v)} ${m}`).join(""):""}${x.notes?" · "+esc(x.notes):""}</div></div>
         <div class="a">${ed?`<button class="btn sm ghost" data-act="edit-item" data-id="${x.id}">${ui.editItem===x.id?"Close":"Edit"}</button>`:""}</div>
         ${ui.editItem===x.id&&ed?itemEditor(c,"cyber",i,[["name","Name","text"],["cat","Category","text"],["hc","HC dice","text"],["hcLoss","Humanity lost","number"],["cost","Cost","number"],["notes","Notes","text"]]):""}</div>`).join("")}`).join(""):`<p class="faint" style="padding:14px 0;margin:0">Meat only, so far.</p>`}
@@ -497,7 +497,7 @@ function tabGear(c,k,ed){
       ${ed?`<div class="row"><input type="number" id="eb-amt" placeholder="Amount" style="width:120px" aria-label="Amount"><button class="btn" data-act="eb" data-d="1">+ Earn</button><button class="btn" data-act="eb" data-d="-1">− Spend</button></div>`:""}
     </div></section>
     <section class="panel"><div class="panel-h"><h3>Gear</h3>${ed?`<div class="row"><button class="btn sm" data-act="open-modal" data-m="shop" data-tab="Gear">+ From catalog</button><button class="btn sm ghost" data-act="add-blank" data-list="gear">+ Custom</button></div>`:""}</div>
-      <div class="panel-b items" style="padding-block:0">${c.gear.length?c.gear.map((g,i)=>`<div class="it"><div style="min-width:0"><div class="t">${esc(g.name)}${Number(g.qty)>1?` <span class="faint mono">×${esc(g.qty)}</span>`:""}</div><div class="m">${fmtEb(g.cost)} each${g.notes?" · "+esc(g.notes):""}</div></div>
+      <div class="panel-b items" style="padding-block:0">${c.gear.length?c.gear.map((g,i)=>`<div class="it"${GEAR_NOTES[g.name]?` data-info="own:gear:${esc(g.id)}"`:""}><div style="min-width:0"><div class="t">${esc(g.name)}${Number(g.qty)>1?` <span class="faint mono">×${esc(g.qty)}</span>`:""}</div><div class="m">${fmtEb(g.cost)} each${g.notes?" · "+esc(g.notes):""}</div></div>
         <div class="a">${ed?`<button class="icon-btn" data-act="qty" data-i="${i}" data-d="-1" aria-label="Fewer">−</button><button class="icon-btn" data-act="qty" data-i="${i}" data-d="1" aria-label="More">+</button><button class="btn sm ghost" data-act="edit-item" data-id="${g.id}">${ui.editItem===g.id?"Close":"Edit"}</button>`:""}</div>
         ${ui.editItem===g.id&&ed?itemEditor(c,"gear",i,[["name","Name","text"],["qty","Qty","number"],["cost","Cost each","number"],["notes","Notes","text"]]):""}</div>`).join(""):`<p class="faint" style="padding:14px 0;margin:0">Empty pockets.</p>`}</div></section>
     <section class="panel"><div class="panel-h"><h3>Lifestyle</h3><span class="mono">${fmtEb(monthly)}/month</span></div><div class="panel-b grid2">
@@ -538,6 +538,7 @@ function renderModal(){
   else if(m==="backups"){title="Backups & version history";body=backupsBody()}
   else if(m==="newchar"){title="New runner";body=newCharBody()}
   else if(m==="check"){title="Skill check";body=checkBody()}
+  else if(m==="attack"){title="Attack";body=attackBody()}
   else if(m==="delete"){const d=S.chars.get(ui.delId);if(!d){ui.modal=null;host.innerHTML="";return}title="Delete "+(d.handle||"this runner")+"?";body=deleteBody(d)}
 
   else {ui.modal=null;host.innerHTML="";return}
@@ -554,13 +555,13 @@ function shopBody(c){
     <div class="row" style="justify-content:space-between"><div class="seg">${tabs.map(x=>`<button class="${t===x?"on":""}" data-act="shop-tab" data-t="${x}">${x}</button>`).join("")}</div><span class="mono">Cash: <b>${fmtEb(c.eb)}</b></span></div>
     <div class="row"><label class="row" style="gap:6px"><input type="checkbox" data-act-change="shop-free" ${ui.shopFree?"checked":""}> Add without paying (loot, gifts, GM fiat)</label>
     ${t==="Cyberware"?`<span class="seg" style="margin-left:auto"><button class="${ui.hcMode==="roll"?"on":""}" data-act="hc-mode" data-v="roll">Roll Humanity cost</button><button class="${ui.hcMode==="avg"?"on":""}" data-act="hc-mode" data-v="avg">Use average</button></span>`:""}</div>
-    <div>${rows}</div>
+    <div class="shop-split"><div class="shop-list">${rows}</div><aside class="shop-detail" id="shop-detail" data-keep aria-live="polite"><p class="faint shop-hint">Point at an item, or tap its name, to see exactly what it does for ${esc(c.handle||"this runner")}.</p></aside></div>
     <p class="faint" style="margin:0;font-size:12.5px">Catalog prices and Humanity costs are editable on each item after you add it, so you can match your table's books.</p>
   </div>`;
 }
 function shopRow(name,meta,cost,kind,i){
   const c=curChar();const short=!ui.shopFree&&c.eb<cost;
-  return `<div class="shop-row"><div style="min-width:0"><div class="t">${esc(name)}</div>${meta?`<div class="m">${esc(meta)}</div>`:""}</div><span class="pr">${fmtEb(cost)}</span><button class="btn sm ${short?"":"blue"}" data-act="buy" data-k="${kind}" data-i="${i}" ${short?"disabled title='Not enough cash'":""}>${ui.shopFree?"Add":"Buy"}</button></div>`;
+  return `<div class="shop-row" data-info="${kind}:${i}"><div style="min-width:0"><div class="t" tabindex="0" role="button" aria-label="${esc(name)}: what it does">${esc(name)} <span class="ii-i" aria-hidden="true">i</span></div>${meta?`<div class="m">${esc(meta)}</div>`:""}</div><span class="pr">${fmtEb(cost)}</span><button class="btn sm ${short?"":"blue"}" data-act="buy" data-k="${kind}" data-i="${i}" ${short?"disabled title='Not enough cash'":""}>${ui.shopFree?"Add":"Buy"}</button></div>`;
 }
 function backupsBody(){
   const chars=allChars().sort((a,b)=>(a.handle||"").localeCompare(b.handle||""));
@@ -626,7 +627,7 @@ const A={
   "open-modal":el=>{ui.modal=el.dataset.m;if(el.dataset.tab)ui.shopTab=el.dataset.tab;renderModal()},
   "close-modal":()=>{ui.modal=null;renderModal()},
   "close-modal-bg":(el,ev)=>{if(ev.target===el){ui.modal=null;renderModal()}},
-  "shop-tab":el=>{ui.shopTab=el.dataset.t;renderModal()},
+  "shop-tab":el=>{ui.shopTab=el.dataset.t;const p=document.getElementById("shop-detail");if(p){delete p.dataset.key;const c=curChar();p.innerHTML=`<p class="faint shop-hint">Point at an item, or tap its name, to see exactly what it does for ${esc((c&&c.handle)||"this runner")}.</p>`}renderModal()},
   "hc-mode":el=>{ui.hcMode=el.dataset.v;renderModal()},
   "buy":el=>{const c=curChar();if(!c||!canEditChar(c)){showNotice(c&&c.id==="sample"?"This is the example character. Copy it to your roster to edit.":"You can't change this character.");return}
     const i=Number(el.dataset.i),k=el.dataset.k;let item,cost,label;

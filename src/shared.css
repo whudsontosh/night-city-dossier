@@ -730,3 +730,38 @@ body.dropping::after{border-color:var(--blue);background:rgba(3,4,6,.88);color:v
 .ck-res .tot{font-family:var(--f-display);font-weight:700;font-size:52px;line-height:.9;color:var(--amber);min-width:62px;text-align:center}
 .ck-res .verdict{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.08em;text-transform:uppercase}
 .ck-res .det{font-size:11.5px;color:var(--ink2);overflow-wrap:anywhere}
+
+/* ---------- 1.4.1: item explanations ---------- */
+.itemtip{position:fixed;z-index:120;overflow-y:auto;background:rgba(3,4,6,.98);border:1px solid var(--line2);border-left:3px solid var(--blue);box-shadow:0 0 30px rgba(62,242,255,.14),0 18px 40px rgba(0,0,0,.6);padding:12px 14px;display:grid;gap:8px;color:var(--ink);font-size:13.5px;line-height:1.4;pointer-events:none}
+.itemtip.pinned{pointer-events:auto}
+.itemtip[hidden]{display:none}
+.ii-h{display:grid;gap:2px}
+.ii-h b{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.ii-h span{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+.ii-note{margin:0;color:var(--ink);font-size:14px}
+.ii-b{display:grid;gap:6px}
+.ii-r{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:baseline}
+.ii-l{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--blue)}
+.ii-r b{color:var(--amber);font-weight:700}
+.ii-f{font-size:11.5px;color:var(--ink3);border-top:1px solid var(--line);padding-top:6px}
+[data-info] .t{cursor:help}
+.shop-row[data-info]:hover,.shop-row[data-info]:focus-within{background:var(--blue-soft)}
+.ii-i{display:inline-grid;place-items:center;width:15px;height:15px;margin-left:4px;border:1px solid var(--line2);border-radius:50%;font-family:var(--f-mono);font-size:10px;color:var(--ink3);vertical-align:1px;font-style:normal}
+.shop-row[data-info]:hover .ii-i{border-color:var(--blue);color:var(--blue)}
+@media (max-width:640px){.ii-r{grid-template-columns:minmax(0,1fr);gap:1px}}
+.modal:has(.shop-split){width:min(1240px,calc(100vw - 32px));max-width:none}
+.shop-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,400px);gap:16px;align-items:start}
+.shop-list{min-width:0}
+.shop-detail{position:sticky;top:0;max-height:calc(100vh - 170px);overflow-y:auto;border:1px solid var(--line2);border-left:3px solid var(--blue);background:var(--sunk);padding:12px 14px;font-size:13.5px;line-height:1.4}
+.shop-detail .ii-pane{display:grid;gap:8px}
+.shop-hint{margin:0;font-size:13px}
+.shop-row.ii-on{background:var(--blue-soft);box-shadow:inset 3px 0 0 var(--blue)}
+@media (max-width:980px){.shop-split{grid-template-columns:minmax(0,1fr)}.shop-detail{display:none}}
+.itemtip.sheet{left:8px!important;right:8px;bottom:8px;top:auto!important;width:auto!important;border-left-width:1px;border-top:3px solid var(--blue)}
+.ii-x{position:absolute;top:8px;right:8px}
+.itemtip{position:fixed}
+.itemtip.pinned .ii-h{padding-right:34px}
+/* ---------- 1.4.1: attack ---------- */
+.modal:has(.ck) .ck-dv button span{white-space:normal}
+.atk-hits{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+.atk-hits .chip b{color:var(--amber);margin-left:2px}

@@ -2,6 +2,18 @@
 
 Add a section at the top for each new version before pushing the version bump. The text under the version heading becomes the GitHub release notes and is shown in the app's update window.
 
+## 1.4.1
+- Item explanations in the shop: point at any weapon, armor, cyberware or gear (or tap its name on a phone) to see exactly what it does. On a wide window the explanation shows in a panel beside the list. On a narrower one it floats next to the item, and on a phone it slides up from the bottom.
+  - Weapons: your actual to-hit number, damage range and average, which armor a typical hit gets through, rate of fire and bursts, magazine, range bands in meters, how likely it is to jam, how easy it is to hide, and where to buy it.
+  - Armor: which locations it covers, how your SP changes if you wear it, and what it costs you in REF.
+  - Cyberware: what it does, what it needs installed first, its Humanity cost and what it would do to your Humanity and EMP.
+  - Gear: what it's for and which skills it helps.
+  - The same explanations show when you point at weapons, armor, cyberware and gear you already own on your sheet.
+- Attack: a simple way to roll an attack and its damage. Open **Attack…** on any weapon (Combat tab), from the dice tray, or from your weapon buttons at the table. Pick the weapon and how far away the target is, then press Attack. It rolls to hit and, if you hit, rolls damage for every round that lands, each with its own hit location.
+  - Handles single shots, 3-round bursts and full auto, aimed shots (−4), modifiers, punches and kicks, melee (opposed: tell your GM your total) and **Damage only** for when your GM says you hit.
+  - Uses ammo and warns you when the magazine is empty (with a Reload button). Fumbles miss and can jam the gun, depending on its reliability.
+  - At the table, the attack and the damage both appear in the table log.
+
 ## 1.4.0
 - Night City Dossier now runs on Mac as well as Windows. Each release has a Mac disk image (`Night-City-Dossier-1.4.0.dmg`) that works on Apple Silicon and Intel Macs with macOS 11 or later. See the README for the one-time "Open Anyway" step, since the app isn't notarised by Apple.
 - Windows and Mac players can share a game: a GM on either can host, and players on either can join with the same invite code. Character files, GM campaign files and backups move freely between the two.

@@ -765,3 +765,11 @@ body.dropping::after{border-color:var(--blue);background:rgba(3,4,6,.88);color:v
 .modal:has(.ck) .ck-dv button span{white-space:normal}
 .atk-hits{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
 .atk-hits .chip b{color:var(--amber);margin-left:2px}
+
+/* ---------- 1.4.2: long windows scroll inside themselves ----------
+   The window's max-height:100% couldn't resolve inside the centring grid, so tall windows
+   (the shop, backups) grew past the screen with nothing to scroll. Cap them to the viewport. */
+.scrim{grid-template-rows:minmax(0,1fr);overflow:hidden}
+.modal{max-height:calc(100vh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));min-height:0}
+.modal-b{flex:1 1 auto;min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.shop-detail{max-height:calc(100dvh - 190px)}

@@ -2,6 +2,9 @@
 
 Add a section at the top for each new version before pushing the version bump. The text under the version heading becomes the GitHub release notes and is shown in the app's update window.
 
+## 1.4.2
+- Fixed: you couldn't scroll down in the shop. Long windows (the shop, Backups and others) grew taller than the screen instead of scrolling. They now fit the window and scroll inside, and the shop's item explanation panel stays in view while you scroll the list.
+
 ## 1.4.1
 - Item explanations in the shop: point at any weapon, armor, cyberware or gear (or tap its name on a phone) to see exactly what it does. On a wide window the explanation shows in a panel beside the list. On a narrower one it floats next to the item, and on a phone it slides up from the bottom.
   - Weapons: your actual to-hit number, damage range and average, which armor a typical hit gets through, rate of fire and bursts, magazine, range bands in meters, how likely it is to jam, how easy it is to hide, and where to buy it.
